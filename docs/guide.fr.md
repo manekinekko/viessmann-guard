@@ -21,26 +21,31 @@ est fermé.
 Il faut Home Assistant **2026.8.3 minimum** et Python **3.14.2 minimum**.
 Home Assistant OS et Container gèrent leur propre version de Python.
 
-### Avec HACS
-
-1. Ouvrez les dépôts personnalisés dans HACS.
-2. Ajoutez `https://github.com/manekinekko/viessmann-guard` avec la catégorie
-   **Intégration**.
-3. Téléchargez Viessmann Guard puis redémarrez Home Assistant.
-4. Dans **Paramètres > Appareils et services > Ajouter une intégration**,
-   recherchez **Viessmann Guard**.
-
-Il s'agit d'un dépôt personnalisé, pas d'une inscription officielle au catalogue
-HACS.
-
 ### Installation manuelle
 
-Copiez le dossier `custom_components/viessmann_guard` du dépôt dans le dossier
-de configuration Home Assistant, au même chemin. Redémarrez Home Assistant,
-puis ajoutez l'intégration depuis l'interface. Sauvegardez votre configuration
-avant une installation ou une mise à jour.
+L'implémentation est actuellement dans la branche
+[`manekinekko-integration-viessmann-guard`](https://github.com/manekinekko/viessmann-guard/tree/manekinekko-integration-viessmann-guard),
+avec la PR #1 en brouillon. Tant qu'elle n'est pas fusionnée, `main` ne contient
+pas le composant utilisable. Il n'existe pas encore de release publiée ni de
+référencement HACS officiel.
 
-## Démarrage rapide (0.2.0)
+Téléchargez [le ZIP de cette branche](https://github.com/manekinekko/viessmann-guard/archive/refs/heads/manekinekko-integration-viessmann-guard.zip).
+Copiez uniquement son dossier complet `custom_components/viessmann_guard`,
+traductions comprises, dans le dossier de configuration HA contenant
+`configuration.yaml`. Ne copiez pas la racine du dépôt, les tests ou `.venv`.
+Sauvegardez d'abord la configuration et l'ancien composant.
+
+Redémarrez **Home Assistant Core une fois** après la copie, puis actualisez
+l'interface. Un simple rechargement ne suffit pas et aucun redémarrage de l'hôte
+n'est nécessaire. Ajoutez **Viessmann Guard** dans **Paramètres > Appareils et
+services > Ajouter une intégration**. Le [README anglais](../README.md#install)
+donne l'arborescence exacte et les précautions de mise à jour.
+
+HACS ne devient une alternative qu'après publication d'une version contenant le
+composant sur la branche par défaut. Pour cette préversion, utilisez la copie
+manuelle, pas le téléchargement du squelette `main`.
+
+## Démarrage rapide
 
 Après avoir choisi **Viessmann Guard** dans Ajouter une intégration :
 
@@ -192,6 +197,23 @@ Configurez la connexion et les destinataires dans l'interface de l'intégration
 **SMTP native de Home Assistant**. Sélectionnez ensuite ses entités `notify`
 dans Guard. N'y recopiez ni mot de passe SMTP ni identifiant Viessmann.
 
+**Créer un destinataire SMTP ne le sélectionne pas dans Guard.** Dans SMTP,
+utilisez **Ajouter un destinataire** pour chaque adresse. Puis ouvrez
+**Viessmann Guard > Configurer > Emails et destinataires > Entités destinataires SMTP**,
+sélectionnez les entités existantes et enregistrez. Activez ensuite
+**Activer les emails** volontairement. Aucun redémarrage n'est nécessaire pour
+cette sélection.
+
+Avec Gmail, activez la validation en deux étapes Google et créez un mot de passe
+d'application. Saisissez-le uniquement dans HA SMTP : serveur `smtp.gmail.com`,
+port `587`, sécurité `STARTTLS`, vérification du certificat activée. L'adresse
+d'expéditeur et le nom d'utilisateur sont votre adresse Gmail complète.
+Utilisez le mot de passe d'application, pas le mot de passe du compte.
+SMTP natif n'utilise pas OAuth Google. Les destinataires peuvent être chez
+n'importe quel fournisseur. Certaines politiques de compte Google interdisent
+les mots de passe d'application ; ne désactivez pas la sécurité pour contourner
+cette restriction.
+
 Donnez aux entités SMTP des noms utiles et neutres, par exemple `Maintenance`
 ou `Maison`, sans adresse email ni information personnelle. Le tableau de bord
 affiche les libellés nettoyés par l'intégration, jamais les adresses brutes.
@@ -200,8 +222,31 @@ affiche les libellés nettoyés par l'intégration, jamais les adresses brutes.
 L'option et l'interrupteur **Activer les emails** modifient le même réglage
 persistant. Il faut au moins un destinataire valide pour les activer.
 
-Vous pouvez choisir la langue française des rapports, leur rappel et l'envoi
-facultatif dès le stade de surveillance. Guard vérifie le registre des entités,
+Le choix **Langue des emails et rapports** propose **English**, **Français**,
+**Español** et **Deutsch**, indépendamment de l'interface Home Assistant.
+L'anglais est le défaut des nouveaux moniteurs, même dans un HA français.
+Les choix déjà enregistrés, notamment le français des anciens assistants
+rapides, sont conservés. Une langue ancienne absente ou non prise en charge
+utilise l'anglais ; les variantes régionales reconnues utilisent leur langue
+de base. Le rapport local `get_report` utilise aussi ce choix.
+
+Changer uniquement la langue ne change ni les destinataires, ni l'interrupteur,
+ni les incidents. Cela ne déclenche aucun email et ne rejoue pas les envois
+acceptés. Une prochaine tentative légitime utilise la nouvelle langue.
+L'activation, en revanche, peut envoyer une alerte active fraîchement confirmée.
+Le bouton **Envoyer un email de test** envoie réellement aux destinataires
+sélectionnés lorsque les emails sont activés.
+
+L'interface possède des traductions natives EN/FR/ES/DE et suit les mécanismes
+HA, avec l'anglais comme base. Les noms personnalisés et les identifiants ne
+changent pas. Le récapitulatif dynamique, les notifications persistantes et les
+explications diagnostiques suivent la langue système HA, pas la langue email ni
+le profil frontend de chaque utilisateur. Les codes et dictionnaires techniques
+restent stables. Les légendes rédigées dans le tableau de bord d'exemple sont en
+anglais et peuvent être adaptées.
+
+Vous pouvez régler les rappels et l'envoi facultatif dès le stade de
+surveillance. Guard vérifie le registre des entités,
 l'appartenance à SMTP et les sous-entrées de destinataires, plutôt que de faire
 confiance au seul nom `notify.*`.
 

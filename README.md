@@ -35,34 +35,65 @@ the dashboard is closed. This project is not affiliated with Viessmann.
 
 ## Install
 
-### HACS custom repository
+### Manual installation, including the current prerelease
 
-This repository is a **custom repository**, not a claim of an official HACS
-listing.
+**The implementation is currently on
+[`manekinekko-integration-viessmann-guard`](https://github.com/manekinekko/viessmann-guard/tree/manekinekko-integration-viessmann-guard)
+in draft [PR #1](https://github.com/manekinekko/viessmann-guard/pull/1).**
+Until that PR is merged, `main` contains only the initial repository skeleton.
+There is no published release or official HACS listing. Use the implementation
+branch, not a guessed release download or the current `main` archive.
 
-1. In HACS, open **Custom repositories**.
-2. Add `https://github.com/manekinekko/viessmann-guard` as an **Integration**.
-3. Download Viessmann Guard and restart Home Assistant.
-4. Open **Settings > Devices & services > Add integration** and search for
-   **Viessmann Guard**.
+1. Back up your Home Assistant configuration. Download the
+   [implementation branch ZIP](https://github.com/manekinekko/viessmann-guard/archive/refs/heads/manekinekko-integration-viessmann-guard.zip)
+   and extract it on your computer. After publication, use a reviewed version
+   that actually contains `custom_components/viessmann_guard`.
+2. Copy **only the complete `custom_components/viessmann_guard` folder** into
+   the Home Assistant configuration directory. This is the directory containing
+   `configuration.yaml`, commonly `/config` on HA OS. Include all Python files,
+   JSON files, `services.yaml`, and the whole `translations` subdirectory.
+   Do not copy the repository root, `tests`, `.venv`, examples, or development files.
+3. **Restart Home Assistant Core once** after installing or replacing the files.
+   Reloading the integration or refreshing the browser does not load updated
+   Python modules reliably. No host reboot is required. Wait for Core to finish
+   starting, then refresh the browser.
 
-### Manual
+The result must look like this, without an extra nested repository folder:
 
-Copy the `custom_components/viessmann_guard` directory from this repository into
-your Home Assistant configuration directory at
-`custom_components/viessmann_guard`. Preserve the directory structure, restart
-Home Assistant, then add the integration through **Devices & services**.
+```text
+<HA configuration directory>/
+  configuration.yaml
+  custom_components/
+    viessmann_guard/
+      __init__.py
+      manifest.json
+      config_flow.py
+      ...other component files...
+      strings.json
+      services.yaml
+      translations/
+        en.json
+        fr.json
+        es.json
+        de.json
+```
 
-Keep a backup of your configuration before installing or updating any custom
-integration.
+Open **Settings > Devices & services > Add integration > Viessmann Guard**, or
+use this link **after installing the files and restarting Core**:
 
-If version 0.1.0 is missing from **Add integration**, or opening its form fails,
-update to 0.1.1 or newer. That version corrects the integration's catalog category
-and form-schema serialization. After copying an update, restart Home Assistant
-when appropriate and refresh the browser. The generic UI message about the
-"latest version" does not by itself mean HA 2026.8.3 or newer needs upgrading.
+[![Add Viessmann Guard](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=viessmann_guard)
 
-## Quick setup (0.2.0)
+### HACS after publication
+
+HACS metadata is included, but the current `main` skeleton is not an installable
+integration. **Use the manual branch installation above for this prerelease.**
+Once a reviewed implementation is published on the repository's default branch
+and HACS offers that version, it can be added through **HACS > Custom repositories**
+as `https://github.com/manekinekko/viessmann-guard`, category **Integration**.
+Download that published version and restart Core. This does not imply an
+official HACS listing, and no nonexistent release is required by this guide.
+
+## Quick setup
 
 After choosing **Viessmann Guard** in Add integration:
 
@@ -130,6 +161,37 @@ demonstrations, and screenshots are synthetic, not installation advice.
 Existing manual configurations keep their mappings, thresholds and email
 permission during migration. Sources are bound to registry identities so entity
 renames survive reload/restart. Discovery never overwrites expert overrides.
+
+### Configuration defaults
+
+These are monitoring settings, **not hydraulic advice or manufacturer limits**.
+Change them in **Configure > Detection rules**, unless another section is listed.
+Durations accumulate only eligible observed operation, not time offline.
+
+| Setting | Default | Unit / effect |
+| --- | --- | --- |
+| Optional installation minimum flow | Not set | L/min; absolute alerts disabled until a real limit is supplied |
+| Low-flow persistence | 180 | Seconds below the configured minimum before urgent detection |
+| Relative decline threshold | 25 | Percent below a confirmed healthy reference |
+| Relative-decline persistence | 1800 | Seconds of comparable decline before a watch incident |
+| Recovery hysteresis | 10 | Percent margin; must be less than the relative decline threshold |
+| Healthy recovery duration | 300 | Seconds of fresh, eligible healthy evidence |
+| Startup grace | 180 | Seconds after startup or an operating-context change |
+| Report freshness limit | 180 | Seconds since the source's HA report, not physical acquisition |
+| Calibration sample count | 10 | Distinct eligible reports after explicit healthy confirmation |
+| Calibration duration | 600 | Seconds spanned by healthy calibration observations |
+| Pump-speed tolerance | 5 | Percentage points, when a speed source is configured |
+| Enable emails | OFF | Emails and recipients; blocks every send, including tests |
+| SMTP recipient entities | Empty | Emails and recipients; select up to 20 existing native SMTP entities |
+| Reminder interval | 24 | Hours, configurable from 1 to 720 |
+| Send watch-stage emails | OFF | Optional email for persistent relative decline |
+| Email and report language | English | English, Français, Español, Deutsch; independent of HA UI |
+
+Automatic ViCare setup maps verified compressor phases and heating-circuit pump
+states when unambiguous. Manual mode/fault mappings have no universal model-specific
+defaults. Changing source identities or detection rules invalidates calibration,
+but keeps unresolved incidents and maintenance history. A language-only change
+does neither and does not reload the monitor.
 
 ### A fixed, healthy reference
 
@@ -210,9 +272,99 @@ heat-pump hardware.
 
 ## Email behavior and limits
 
+### Interface language versus email language
+
+English is the canonical/fallback interface language. Native HA labels, forms,
+states, actions and errors have complete English, French, Spanish and German
+catalogs and use Home Assistant's normal localization behavior. Guard does not
+change your profile language, the HA system language, entity IDs, unique IDs,
+or customized names.
+
+In **Configure > Emails and recipients > Email and report language**, choose
+**English**, **Français**, **Español**, or **Deutsch**. This preference is per
+Guard instance and independent of your interface language. It applies to all
+email subjects, plain text and HTML, including watch, urgent, reminder, recovery
+and test messages. The local `viessmann_guard.get_report` response uses this same
+preference and keeps its `title`, `message`, `html` fields.
+
+New monitors default to English, even when HA uses another language. Existing
+saved English/French choices are preserved, including French automatically
+selected by older quick setup. Missing or unsupported legacy language values
+fall back to English; supported regional variants normalize to their base
+language. No upgrade enables emails or sends a language-change notification.
+Changing only the language preserves recipients, permissions, incidents and
+retry outcomes. A later legitimate retry or remaining recipient uses the current
+language; already accepted messages are not resent.
+
+Some dynamic text is generated by the backend: the discovery summary,
+persistent HA notifications, `reason_text`, `limitations_text` and neutral
+recipient fallback labels follow **HA's system language**, not each user's
+frontend profile and not the email preference. Machine reason codes and nested
+diagnostic dictionaries remain stable. Source names, original operating values,
+manufacturer codes and units remain as supplied. Report timestamps include an
+explicit UTC offset. The example dashboard's authored captions are English;
+edit them if you want another language.
+
+### Configure native SMTP, then select recipients in Guard
+
 Configure the SMTP connection and recipient addresses in Home Assistant's SMTP
 UI. Select its recipient entities in Guard. **Do not copy SMTP passwords,
 tokens, or server credentials into Guard, YAML examples, or issues.**
+
+SMTP is optional. You can finish setup, observe data and read local reports
+without configuring it. When you want email:
+
+1. Open **Settings > Devices & services > Add integration > SMTP** and configure
+   the connection using your provider's documented settings. Guard reuses
+   Home Assistant's [native SMTP integration](https://www.home-assistant.io/integrations/smtp/);
+   a legacy `notify.some_service` action is not a native recipient entity.
+2. On the SMTP integration, choose **Add recipient**, enter a neutral name
+   such as `Maintenance` and an address such as `maintenance@example.com`,
+   then **Submit**. Repeat for each recipient. Each becomes its own `notify`
+   entity. If setup already created the intended recipient, reuse it rather
+   than adding it again. Recipients can use any email provider; they need not use Gmail.
+3. Open **Viessmann Guard > Configure > Emails and recipients**. In
+   **SMTP recipient entities**, **select the existing recipient entity or
+   entities and save the form**. Then deliberately enable **Enable emails**,
+   using the same options page or the dashboard switch.
+
+**Creating an SMTP recipient does not select it in Guard.** If enabling gives
+“Select at least one valid native SMTP recipient before enabling or testing emails”,
+return to the Guard selector, select the existing entities and save. Do not add
+fake addresses or disable validation. Selection and permission are separate.
+
+Enabling emails can send a current, freshly confirmed active alert. Once enabled,
+the optional **Send test email** action sends real email to every selected
+recipient; do not press it unless that is intended. Saving a language alone is
+not a test. A saved SMTP entry proves configuration, not current authentication
+or successful inbox delivery.
+
+### Gmail example
+
+Enable [Google 2-Step Verification and create an app password](https://support.google.com/accounts/answer/185833)
+for Home Assistant. Native SMTP uses password authentication, **not Google OAuth**.
+Use the app password, not your normal Google account password. Some Workspace,
+Advanced Protection or security-key-only policies prevent app-password creation;
+follow Google's account guidance or choose another SMTP provider rather than
+weakening account security.
+
+Enter these values **only in Home Assistant's SMTP form**:
+
+| SMTP field | Value |
+| --- | --- |
+| Host | `smtp.gmail.com` |
+| Port | `587` |
+| Connection security | `STARTTLS` |
+| Verify SSL certificate | ON |
+| Sender email | Your full Gmail address |
+| Username | The same full Gmail address |
+| Password | Your Google app password, not the account password |
+| Sender name | A neutral label, for example `Viessmann Guard` |
+
+Never post the app password, SMTP configuration or recipient addresses in an
+issue or chat. After saving Gmail SMTP, **add its recipient entities and select
+them in Guard using the steps above**. Gmail setup alone does not complete Guard's
+recipient selection.
 
 Give SMTP recipient entities useful neutral names such as `Maintenance` or
 `Household`, without addresses or personal information. The dashboard displays
@@ -262,6 +414,37 @@ Friendly names and manually selected values still deserve review. Use neutral
 names, inspect your selected sources, and redact addresses, names, locations,
 identifiers, and credentials before sharing a report or screenshot. Do not
 attach an unredacted Home Assistant diagnostic export to a public issue.
+
+## Troubleshooting and updates
+
+| Symptom | What to check |
+| --- | --- |
+| “Select at least one valid native SMTP recipient before enabling or testing emails” (`required_recipient`) | Select existing entities in **Guard > Configure > Emails and recipients > SMTP recipient entities**, save, then enable. Having recipients in SMTP alone is not enough. |
+| “Emails are disabled, including tests” (`emails_disabled`) | This is intentional. Enable the persisted permission only if outgoing email is wanted. OFF never needs a fake recipient. |
+| Selected SMTP entity is rejected | Check that it is an enabled native SMTP `notify` entity with an existing recipient subentry, not a deleted, orphaned or legacy service. Reselect the intended entity in Guard. |
+| SMTP failure or authentication error | Inspect individual recipient outcomes and native SMTP errors. For Gmail, check the app password, full username/sender and STARTTLS settings. Registry validation cannot prove authentication. Do not repeatedly resend to successful recipients. |
+| Guard missing from Add integration, or “does not support UI configuration” | Check the directory tree and `manifest.json`, install the full current component, restart **Core**, then refresh HA. Version 0.1.0 had catalog/serialization defects fixed in 0.1.1. A browser cache refresh alone cannot load Python changes. |
+| Unsupported flow unit or invalid value | Use a finite nonnegative value with explicit `L/min`, `L/h`, `m³/h` (`m3/h`), `m³/s` (`m3/s`), or `US gal/min`. Missing units and ambiguous `gal/min` are rejected. Do not relabel an unrelated sensor to bypass validation. |
+| Stale or post-restart waiting | Check whether ViCare is publishing reports, including unchanged values. HA report age is not controller acquisition age. Restore source telemetry; do not treat stale data as recovery. |
+| Observation only / diagnosis unavailable | Read the reason and limitations. Missing minimum disables absolute detection. Relative analysis needs a confirmed healthy reference and comparable active mode/circulation. API tiers and models expose different data; Guard cannot manufacture missing measurements. |
+| No candidate or ambiguous circuit | Use advanced manual mapping only with verified source roles. Guard never enables disabled upstream entities or picks an arbitrary heating circuit. |
+
+For an update, back up the **existing Guard component and your HA configuration**
+first. Replace the complete `custom_components/viessmann_guard` folder, keeping
+backups outside `custom_components` so HA cannot discover duplicate integrations.
+Do not delete/recreate your configured Guard entry or edit `.storage`. Restart
+Core once at a convenient time after copying, then inspect the version, sources,
+language, permission and diagnostics. Email permission and mappings remain saved;
+fresh telemetry is still required after startup.
+
+For rollback, restore the previous complete Guard folder from your backup and
+restart Core. If a future version changes stored schemas, use its migration notes
+and a compatible configuration backup, not manual `.storage` edits. Do not restore
+an entire HA backup blindly over unrelated changes.
+
+For installation feedback, [open a GitHub issue](https://github.com/manekinekko/viessmann-guard/issues)
+with Guard/HA versions, the failed step and redacted source roles/units or error
+codes. Never upload secrets, raw registries, private addresses or full backups.
 
 ## Documentation and development
 

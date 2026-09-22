@@ -90,10 +90,17 @@ Use HA fixtures and fake services. Do not ask reviewers to reproduce on their
 own heat pump. Keep tests deterministic and bounded.
 
 Update the README, English architecture, and French guide when behavior changes.
-Keep `strings.json`, `translations/en.json`, and `translations/fr.json` aligned,
+Keep `strings.json` and all four catalogs in `translations/` (`en`, `fr`, `es`, `de`) aligned,
 including configuration/options labels, descriptions, validation errors,
 entity states, and action fields. Reason codes are API-like identifiers; human
 explanations belong in translations.
+
+`tests/test_localization.py` checks native HA catalog loading, key/placeholder
+parity, all report types/locales, HTTP selector serialization, current-value
+defaults, legacy fallback, per-instance independence and locale changes during
+recipient dispatch/retries. Keep those changes presentation-only: no reload,
+new mail, permission change or replay when only the language changes. Dynamic
+backend UI text follows the HA system language, not the email locale.
 
 The example dashboard must use only native HA cards and the default theme.
 Keep visible button labels, text status explanations, responsive layout, and

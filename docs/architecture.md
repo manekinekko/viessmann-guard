@@ -131,9 +131,31 @@ an incident or recovery timer mature.
 | `recipients` | `[]` | At most 20 validated SMTP recipient entity IDs |
 | `reminder_hours` | 24 | Reminder interval from 1 to 720 hours |
 | `watch_email` | `false` | Opt in to watch-stage notifications |
-| `language` | `en` | Report language, `en` or `fr` |
+| `language` | `en` | Email/local report language: `en`, `fr`, `es`, or `de`, independent of HA UI |
 | `report_entities` | `[]` | Explicit additional entities, at most 150 |
 | `report_exclude` | `[]` | Exclusions from automatic/additional inventory |
+
+New entries always use English for email, regardless of HA's language. Existing
+saved choices remain intact; supported regional variants normalize in memory,
+and missing/unsupported legacy values fall back to English. New selections must
+use one of the four stable codes. No storage-version migration is needed.
+
+Native labels, states, attributes, selectors, actions and errors use the four
+HA catalogs, with identical keys/placeholders and canonical English `strings.json`.
+Dynamic discovery summaries, persistent notices and diagnostic explanation
+attributes use HA's backend system language, not a user's frontend preference.
+Nested diagnostic dictionaries retain machine codes. User source names and raw
+values are not translated or renamed.
+
+The shared report renderer translates presentation only. It includes locale-specific
+subjects, cautious advice, reason/state/status descriptions, thresholds, context
+lists and evidence rules. All dynamic HTML values remain escaped. `get_report`
+uses the email locale with its unchanged `title`/`message`/`html` response.
+Changing only `language` updates the runtime without reload, evaluation,
+reconfiguration of delivery, incident-key changes or queue replay. Omitted email
+form values default to the current configuration, not fresh-install defaults.
+Dispatch re-renders for each recipient, so later retries/remaining recipients use
+the current language without resending previously accepted deliveries.
 
 The inventory is limited to selected devices and eligible entity domains:
 `sensor`, `binary_sensor`, `select`, `climate`, and `number`. The configuration
