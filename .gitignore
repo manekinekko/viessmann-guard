@@ -1,0 +1,12 @@
+.venv/
+.venv-min/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+*.egg-info/
+.DS_Store
+.ha-demo/
