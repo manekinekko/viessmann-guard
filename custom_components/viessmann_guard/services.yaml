@@ -76,3 +76,13 @@ test_email:
       selector:
         config_entry:
           integration: viessmann_guard
+get_report:
+  name: Read the observation report
+  description: Return a bounded report for this monitor's selected equipment without sending email. Available while emails are OFF. Review names and values before sharing.
+  fields:
+    entry_id:
+      name: Monitor
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard

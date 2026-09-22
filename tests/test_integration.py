@@ -90,6 +90,10 @@ async def test_setup_entities_sources_same_value_freshness_and_unload(hass, sour
 
 async def test_flow_validates_source_units_and_explicit_rules(hass, source_config):
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "manual"}
+    )
     assert result["type"] is FlowResultType.FORM
     sources = {
         k: v

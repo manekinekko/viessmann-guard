@@ -57,7 +57,7 @@ def convert_flow(value: float | str | None, unit: str | None) -> float:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    min_flow_l_min: float
+    min_flow_l_min: float | None = None
     absolute_persistence_s: float = 180
     relative_drop_pct: float = 25
     relative_persistence_s: float = 1800
@@ -90,9 +90,13 @@ class Settings:
             "pump_tolerance_pct",
         ):
             value = getattr(self, name)
+            if name == "min_flow_l_min" and value is None:
+                continue
             if isinstance(value, (bool, str)) or _number(value) is None or value < 0:
                 raise ValueError(f"{name} must be a finite, nonnegative number")
-        if self.min_flow_l_min <= 0 or self.stale_after_s <= 0:
+        if (
+            self.min_flow_l_min is not None and self.min_flow_l_min <= 0
+        ) or self.stale_after_s <= 0:
             raise ValueError("min_flow_l_min and stale_after_s must be greater than zero")
         if not 0 < self.relative_drop_pct < 100:
             raise ValueError("relative_drop_pct must be between zero and 100")
@@ -312,6 +316,10 @@ class Engine:
         duration: float = 0,
         transition: str | None = None,
     ) -> Result:
+        if state == "normal" and self.settings.min_flow_l_min is None:
+            state = "diagnostic_unavailable"
+            if reason in ("healthy", "calibration_complete", "baseline_unconfirmed"):
+                reason = "minimum_not_configured"
         return Result(
             state=state,
             reason=reason,
@@ -553,11 +561,16 @@ class Engine:
             if comparable and self._baseline is not None
             else None
         )
-        absolute_low = flow < self.settings.min_flow_l_min
+        minimum = self.settings.min_flow_l_min
+        absolute_low = minimum is not None and flow < minimum
         relative_low = decline is not None and decline >= self.settings.relative_drop_pct
         self._absolute = self._advance(self._absolute, new_report, now) if absolute_low else None
         self._relative = self._advance(self._relative, new_report, now) if relative_low else None
-        healthy = flow >= self.settings.min_flow_l_min * (1 + self.settings.hysteresis_pct / 100)
+        healthy = (
+            flow >= minimum * (1 + self.settings.hysteresis_pct / 100)
+            if minimum is not None
+            else flow > 0
+        )
         if decline is not None:
             healthy = healthy and decline <= max(
                 0.0, self.settings.relative_drop_pct - self.settings.hysteresis_pct
@@ -576,6 +589,11 @@ class Engine:
             transition = self._open("watch", "relative_flow_decline", now)
 
         if self._incident is not None:
+            if minimum is None and self._incident["reason"] != "relative_flow_decline":
+                self._recovery = None
+                self._confirmed = False
+                self.result = self._result("diagnostic_unavailable", "minimum_not_configured", flow)
+                return self.result
             if self._incident["reason"] == "relative_flow_decline" and not comparable:
                 self._recovery = None
                 self._confirmed = False
@@ -705,7 +723,14 @@ class Engine:
             or self._valid_until is None
             or now > self._valid_until
             or not self._last_healthy
-            or self.result.state != "normal"
+            or (
+                self.result.state != "normal"
+                and not (
+                    self.settings.min_flow_l_min is None
+                    and self.result.reason
+                    in ("minimum_not_configured", "baseline_context_mismatch")
+                )
+            )
         ):
             raise ValueError("Calibration requires fresh, healthy, running telemetry after startup")
         self._calibration = _Calibration(self._context, now)

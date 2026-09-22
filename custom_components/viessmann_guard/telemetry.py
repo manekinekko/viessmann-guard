@@ -47,6 +47,10 @@ def validate_report_entities(hass: HomeAssistant, config: dict[str, Any]) -> dic
 
 
 def inventory(hass: HomeAssistant, config: dict[str, Any]) -> tuple[list[str], bool]:
+    from homeassistant.helpers import device_registry as dr
+
+    from .discovery import EXTRA_REPORT_KEYS, functional_suffix
+
     mapped = {config[f"{r}_entity"] for r in SOURCE_ROLES if config.get(f"{r}_entity")}
     selected = mapped | set(config.get("report_entities", []))
     excluded = set(config.get("report_exclude", []))
@@ -65,6 +69,20 @@ def inventory(hass: HomeAssistant, config: dict[str, Any]) -> tuple[list[str], b
                 and device_class in ("running", "problem", "heat", "power")
             )
             or entity.domain in ("climate", "number")
+        ):
+            selected.add(entity.entity_id)
+        elif (
+            entity.platform == "vicare"
+            and entity.domain == "sensor"
+            and entity.translation_key in EXTRA_REPORT_KEYS
+            and entity.device_id
+            and (device := dr.async_get(hass).async_get(entity.device_id))
+            and isinstance(device, dr.DeviceEntry)
+            and (suffix := functional_suffix(entity, device))
+            and (
+                suffix == entity.translation_key
+                or suffix.rsplit("-", 1)[0] == entity.translation_key
+            )
         ):
             selected.add(entity.entity_id)
     # Always keep explicit diagnostic mappings visible, even if excluded from auto-inventory.

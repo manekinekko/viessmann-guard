@@ -16,6 +16,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_state_report_event,
@@ -25,7 +26,8 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, EMAIL_DEFAULTS, LIST_SETTINGS, NUMERIC_RULES, SOURCE_ROLES, public_state
 from .delivery import Delivery, DeliveryError
-from .engine import Engine, Settings, Snapshot
+from .discovery import resolve_sources
+from .engine import Engine, Settings, Snapshot, convert_flow
 from .report import render_report
 from .storage import GuardStore, validate_storage
 from .telemetry import (
@@ -42,6 +44,9 @@ _LOGGER = logging.getLogger(__name__)
 
 def configuration(entry: ConfigEntry) -> dict[str, Any]:
     return {
+        "min_flow_l_min": None,
+        "report_entities": [],
+        "report_exclude": [],
         **EMAIL_DEFAULTS,
         **{key: default for key, (default, _, _) in NUMERIC_RULES.items()},
         **entry.data,
@@ -66,6 +71,8 @@ def fingerprint(config: dict[str, Any]) -> str:
         or key in NUMERIC_RULES
         or key in ("min_flow_l_min", "device_ids")
     }
+    for key, registry_id in config.get("source_registry_ids", {}).items():
+        relevant[key] = registry_id
     return hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
 
 
@@ -73,7 +80,7 @@ class GuardRuntime:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        self.config = configuration(entry)
+        self.config = resolve_sources(hass, configuration(entry))
         self.started_at = dt_util.utcnow().timestamp()
         self.store = GuardStore(hass, 1, f"{DOMAIN}.{entry.entry_id}")
         self.engine = Engine(settings(self.config))
@@ -81,6 +88,7 @@ class GuardRuntime:
         self.test_delivery = Delivery(self._send, self._render, self.save, self.changed)
         self.listeners: list[Callable[[], None]] = []
         self.unsubscribers: list[Callable[[], None]] = []
+        self._source_unsubscribers: list[Callable[[], None]] = []
         self._evaluate_task: asyncio.Task | None = None
         self._delivery_task: asyncio.Task | None = None
         self._action_tasks: set[asyncio.Task[Any]] = set()
@@ -106,7 +114,11 @@ class GuardRuntime:
     async def start(self) -> None:
         restored = validate_storage(await self.store.async_load())
         engine_data = restored.get("engine")
-        if restored and restored.get("fingerprint") != fingerprint(self.config):
+        compatible_fingerprints = {
+            fingerprint(self.config),
+            fingerprint({**configuration(self.entry), "source_registry_ids": {}}),
+        }
+        if restored and restored.get("fingerprint") not in compatible_fingerprints:
             # Preserve unresolved incident/history, but never reuse an incompatible reference.
             engine_data = dict(engine_data or {})
             engine_data.pop("baseline", None)
@@ -132,13 +144,63 @@ class GuardRuntime:
         self.trends = restored.get("trends", [])[-120:]
         # A reminder is not overdue merely because Home Assistant was offline.
         self.next_reminder = self.started_at + self.config["reminder_hours"] * 3600
-        ids = [self.config[f"{r}_entity"] for r in SOURCE_ROLES if self.config.get(f"{r}_entity")]
         self.unsubscribers = [
-            async_track_state_change_event(self.hass, ids, self._source_event),
-            async_track_state_report_event(self.hass, ids, self._source_event),
             async_track_time_interval(self.hass, self._timer, timedelta(seconds=15)),
+            self.hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, self._registry_event),
         ]
+        self._listen_sources()
         await self.evaluate()
+
+    @callback
+    def _listen_sources(self) -> None:
+        for unsubscribe in self._source_unsubscribers:
+            unsubscribe()
+        ids = [self.config[f"{r}_entity"] for r in SOURCE_ROLES if self.config.get(f"{r}_entity")]
+        self._source_unsubscribers = (
+            [
+                async_track_state_change_event(self.hass, ids, self._source_event),
+                async_track_state_report_event(self.hass, ids, self._source_event),
+            ]
+            if ids
+            else []
+        )
+
+    @callback
+    def _registry_event(self, event: Event[Any]) -> None:
+        resolved = resolve_sources(self.hass, self.config)
+        if resolved != self.config:
+            self.config = resolved
+            self._listen_sources()
+        self.schedule()
+
+    def observed_flow(self) -> float | None:
+        item = self.snapshot(dt_util.utcnow().timestamp()).flow
+        if item.status != "ok":
+            return None
+        try:
+            return convert_flow(item.value, item.unit)
+        except ValueError:
+            return None
+
+    @property
+    def diagnostic_state(self) -> str:
+        result = self.engine.result
+        if self.config["min_flow_l_min"] is None and result.state in ("normal", "idle"):
+            return "diagnostic_unavailable"
+        return public_state(result.state, result.incident_id is not None)
+
+    @property
+    def limitations(self) -> list[str]:
+        result = []
+        if self.config["min_flow_l_min"] is None:
+            result.append("minimum_not_configured")
+        if not self.config.get("mode_entity"):
+            result.append("mode_unavailable")
+        if not self.config.get("pump_entity"):
+            result.append("pump_not_configured")
+        if self.engine.result.reference is None:
+            result.append("baseline_unconfirmed")
+        return result
 
     @callback
     def changed(self) -> None:
@@ -203,11 +265,10 @@ class GuardRuntime:
             previous_engine = self.engine.serialize()
             result = self.engine.evaluate(sample)
             self.last_telemetry = sample.flow.observed_at
-            if sample.flow.observed_at != self._last_trend and result.flow is not None:
+            flow = self.observed_flow()
+            if sample.flow.observed_at != self._last_trend and flow is not None:
                 self._last_trend = sample.flow.observed_at
-                self.trends.append(
-                    {"observed_at": iso(sample.flow.observed_at), "flow": result.flow}
-                )
+                self.trends.append({"observed_at": iso(sample.flow.observed_at), "flow": flow})
                 self.trends = self.trends[-120:]
             self._persistent_notice()
             eligible = self._mail_eligible()
@@ -266,13 +327,22 @@ class GuardRuntime:
 
     def _recovery_eligible(self) -> bool:
         result = self.engine.result
+        minimum = self.config["min_flow_l_min"]
         return bool(
             result.incident_id is None
-            and result.state == "normal"
-            and result.reason in ("healthy", "baseline_unconfirmed", "calibration_complete")
+            and (result.state == "normal" or result.reason == "minimum_not_configured")
+            and result.reason
+            in ("healthy", "baseline_unconfirmed", "calibration_complete", "minimum_not_configured")
             and result.flow is not None
-            and result.flow
-            >= self.config["min_flow_l_min"] * (1 + self.config["hysteresis_pct"] / 100)
+            and (
+                result.flow >= minimum * (1 + self.config["hysteresis_pct"] / 100)
+                if minimum is not None
+                else result.reference is not None
+                and result.decline_pct is not None
+                and result.flow > 0
+                and result.decline_pct
+                <= self.config["relative_drop_pct"] - self.config["hysteresis_pct"]
+            )
         )
 
     def _schedule_delivery(self, now: float) -> None:
@@ -367,7 +437,7 @@ class GuardRuntime:
         await self.evaluate()
 
     async def apply_options(self) -> None:
-        updated = configuration(self.entry)
+        updated = resolve_sources(self.hass, configuration(self.entry))
         old = {k: v for k, v in self.config.items() if k != "emails_enabled"}
         new = {k: v for k, v in updated.items() if k != "emails_enabled"}
         if old != new:
@@ -536,9 +606,9 @@ class GuardRuntime:
             {
                 "generated_at": iso(now),
                 "name": self.config["name"],
-                "state": public_state(result.state, result.incident_id is not None),
+                "state": self.diagnostic_state,
                 "reason": describe_reason(result.reason, self.config["language"]),
-                "flow": result.flow,
+                "flow": self.observed_flow(),
                 "reference": result.reference,
                 "minimum": self.config["min_flow_l_min"],
                 "decline_pct": result.decline_pct,
@@ -553,6 +623,10 @@ class GuardRuntime:
                     "Inventory truncated at 150 entities."
                     if truncated
                     else "Device-scoped inventory; only selected state fields.",
+                    *[
+                        describe_reason(reason, self.config["language"])
+                        for reason in self.limitations
+                    ],
                 ],
                 "incident": {
                     "id": result.incident_id,
@@ -564,6 +638,11 @@ class GuardRuntime:
             kind,
             self.config["language"],
         )
+
+    def observation_report(self) -> dict[str, str]:
+        """Render the scoped report locally, without touching either mail queue."""
+        title, message, html = self._render("report")
+        return {"title": title, "message": message, "html": html}
 
     def export(self) -> dict[str, Any]:
         return {
@@ -600,9 +679,10 @@ class GuardRuntime:
         self.stopped = True
         self.delivery.stop()
         self.test_delivery.stop()
-        for unsubscribe in self.unsubscribers:
+        for unsubscribe in (*self.unsubscribers, *self._source_unsubscribers):
             unsubscribe()
         self.unsubscribers.clear()
+        self._source_unsubscribers.clear()
         current = asyncio.current_task()
         pending = {
             task

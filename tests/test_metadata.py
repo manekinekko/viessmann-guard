@@ -54,9 +54,14 @@ async def test_ui_config_flow_and_options_serialize_all_forms(hass, hass_client,
     response = await client.post("/api/config/config_entries/flow", json={"handler": DOMAIN})
     assert response.status == 200
     result = await response.json()
-    assert result["type"] == "form"
+    assert result["type"] == "menu"
     assert result["step_id"] == "user"
     flow_id = result["flow_id"]
+    response = await client.post(
+        f"/api/config/config_entries/flow/{flow_id}", json={"next_step_id": "manual"}
+    )
+    assert response.status == 200
+    assert (await response.json())["step_id"] == "manual"
     sources = {
         key: value
         for key, value in source_config.items()
@@ -105,7 +110,7 @@ async def test_ui_config_flow_and_options_serialize_all_forms(hass, hass_client,
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert entry.data["emails_enabled"] is False
     assert isinstance(entry.data["calibration_samples"], int)
-    for step in ("sources", "rules", "emails", "report"):
+    for step in ("minimum", "sources", "rules", "emails", "report"):
         response = await client.post(
             "/api/config/config_entries/options/flow", json={"handler": entry.entry_id}
         )
@@ -155,13 +160,13 @@ def test_manifest_translations_and_services():
     assert json.loads((ROOT / "hacs.json").read_text())["homeassistant"] == "2026.8.3"
     strings = json.loads((component / "strings.json").read_text())
     services = yaml.safe_load((component / "services.yaml").read_text())
-    assert set(services) == set(ACTIONS)
+    assert set(services) == set(ACTIONS) | {"get_report"}
     for language in ("en", "fr"):
         translated = json.loads((component / "translations" / f"{language}.json").read_text())
         for section in ("config", "options", "entity", "exceptions", "services"):
             assert section in translated
         for step, schema in (
-            ("user", sources_schema()),
+            ("manual", sources_schema()),
             ("rules", rules_schema()),
             ("emails", emails_schema()),
             ("report", report_schema()),
@@ -191,3 +196,4 @@ async def test_dashboard_references_real_entities_and_actions(hass, source_confi
     assert referenced <= actual, f"Dashboard references nonexistent entities: {referenced - actual}"
     for action in ACTIONS:
         assert hass.services.has_service(DOMAIN, action)
+    assert hass.services.has_service(DOMAIN, "get_report")

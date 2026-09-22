@@ -3,6 +3,20 @@
   "config": {
     "step": {
       "user": {
+        "title": "Automatic ViCare setup",
+        "description": "No supported ViCare heat pump was identified. Check that the native ViCare integration has enabled entities. Other source integrations and unrecognized equipment can use advanced manual setup. No settings are guessed.",
+        "menu_options": {"manual": "Advanced manual setup"}
+      },
+      "select_device": {
+        "title": "Choose the heat pump",
+        "description": "Each choice is a separate ViCare device with heat-pump telemetry, not a gateway. Only this device's sources will be monitored. If names are identical, give the devices distinct names in ViCare before choosing.",
+        "data": {"device_id": "Heat pump"}
+      },
+      "confirm": {
+        "title": "Your heat pump is ready for observation",
+        "description": "{summary}"
+      },
+      "manual": {
         "title": "Map existing equipment sources",
         "description": "Read-only monitoring of existing Home Assistant entities. No Viessmann credentials or extra API requests. Select the equipment devices first. Flow and mode are required; active diagnosis also needs a pump-running source. This is not a safety device.",
         "data": {
@@ -60,7 +74,7 @@
           "fault_clear_values": "Clear fault values"
         },
         "data_description": {
-          "min_flow_l_min": "Required installation-specific limit. This project supplies no universal or manufacturer minimum.",
+          "min_flow_l_min": "Optional installation-specific limit. Leave blank if unknown: absolute alerts stay disabled. No universal or manufacturer minimum is supplied.",
           "absolute_persistence_s": "How long eligible low-flow observations must persist before an urgent incident.",
           "relative_drop_pct": "Decline against a fixed, explicitly confirmed healthy reference in comparable conditions.",
           "relative_persistence_s": "How long a comparable relative decline must persist before a watch incident.",
@@ -112,6 +126,8 @@
       }
     },
     "error": {
+      "source_changed": "Sources changed during setup. Review the updated selection and confirm again.",
+      "already_configured": "This device already has a Viessmann Guard monitor.",
       "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
       "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
       "invalid_device": "Select at least one existing equipment device.",
@@ -130,6 +146,10 @@
       "duplicate_recipient": "Two selected entities identify the same SMTP recipient. Keep only one.",
       "required_recipient": "Select at least one valid SMTP recipient before enabling emails.",
       "invalid_report_entity": "Choose an eligible, non-private entity belonging to a selected device."
+    },
+    "abort": {
+      "already_configured": "This heat pump already has a Viessmann Guard monitor. Use its options instead.",
+      "source_changed": "The selected ViCare heat pump is no longer available. Restore its integration and try again."
     }
   },
   "options": {
@@ -138,11 +158,17 @@
         "title": "Viessmann Guard options",
         "description": "Update sources, detection evidence, email permission, or report scope. No option controls the heat pump.",
         "menu_options": {
+          "minimum": "Optional installation minimum flow",
           "emails": "Emails and recipients",
           "sources": "Equipment sources",
           "rules": "Detection rules",
           "report": "Report contents"
         }
+      },
+      "minimum": {
+        "title": "Installation minimum flow",
+        "description": "Enter only the actual minimum supplied by the manufacturer or installer, in L/min. Leave blank to disable absolute alerts. Changing this rule invalidates the learned reference, but cannot clear an active incident. No equipment settings are changed.",
+        "data": {"min_flow_l_min": "Minimum flow (L/min)"}
       },
       "sources": {
         "title": "Map existing equipment sources",
@@ -254,6 +280,7 @@
       }
     },
     "error": {
+      "already_configured": "This device already has a Viessmann Guard monitor.",
       "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
       "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
       "invalid_device": "Select at least one existing equipment device.",
@@ -300,6 +327,7 @@
         "name": "Reason",
         "state": {
           "awaiting_observations": "Waiting for source observations",
+          "minimum_not_configured": "Observation / relative monitoring only: minimum flow not configured",
           "clock_moved_backwards": "Clock moved backwards; fresh evidence is required",
           "flow_unavailable": "Flow report is missing, unavailable, or not usable",
           "flow_stale": "Flow report is stale",
@@ -409,6 +437,13 @@
     "confirmation_required": {"message": "Healthy calibration requires confirmed: true after independently checking that operation is healthy and comparable."}
   },
   "services": {
+    "get_report": {
+      "name": "Read the observation report",
+      "description": "Return a report for the selected equipment locally, with no email, queue change or equipment command. Works while emails are OFF.",
+      "fields": {
+        "entry_id": {"name": "Monitor", "description": "The Viessmann Guard entry whose selected equipment is included."}
+      }
+    },
     "acknowledge": {
       "name": "Acknowledge incident",
       "description": "Mark the current incident as seen. This does not resolve it or control the heat pump.",

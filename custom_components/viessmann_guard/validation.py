@@ -81,7 +81,7 @@ def validate_sources(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str
         key = f"{role}_entity"
         entity_id = data.get(key)
         if not entity_id:
-            if role in REQUIRED_ROLES:
+            if role in REQUIRED_ROLES and data.get("setup_mode") != "automatic":
                 errors[key] = "required_source"
             continue
         entity = registry.async_get(entity_id)
@@ -154,12 +154,14 @@ def validate_emails(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]
 
 def validate_rules(data: dict[str, Any]) -> dict[str, str]:
     errors = {}
-    if not _valid_number(data.get("min_flow_l_min"), 0.001, 100000):
+    if data.get("min_flow_l_min") is not None and not _valid_number(
+        data["min_flow_l_min"], 0.001, 100000
+    ):
         errors["min_flow_l_min"] = "invalid_number"
     for key, (_, minimum, maximum) in NUMERIC_RULES.items():
         if not _valid_number(data.get(key), minimum, maximum, integer=key == "calibration_samples"):
             errors[key] = "invalid_number"
-    if not data.get("running_modes"):
+    if not data.get("running_modes") and data.get("setup_mode") != "automatic":
         errors["running_modes"] = "required_modes"
     groups = [set(data.get(key, [])) for key in ("running_modes", "idle_modes", "excluded_modes")]
     if any(groups[i] & groups[j] for i in range(3) for j in range(i)):

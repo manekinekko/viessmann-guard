@@ -3,6 +3,20 @@
   "config": {
     "step": {
       "user": {
+        "title": "Configuration automatique ViCare",
+        "description": "Aucune PAC ViCare compatible identifiée. Vérifiez que l'intégration native ViCare expose des entités actives. Pour un autre équipement ou une autre intégration source, utilisez la configuration manuelle avancée. Aucun réglage n'est deviné.",
+        "menu_options": {"manual": "Configuration manuelle avancée"}
+      },
+      "select_device": {
+        "title": "Choisir la pompe à chaleur",
+        "description": "Chaque choix représente un appareil ViCare avec des mesures de PAC, pas une passerelle. Seules ses sources seront surveillées. Si les noms sont identiques, donnez des noms distincts aux appareils dans ViCare avant de choisir.",
+        "data": {"device_id": "Pompe à chaleur"}
+      },
+      "confirm": {
+        "title": "Votre PAC est prête pour l'observation",
+        "description": "{summary}"
+      },
+      "manual": {
         "title": "Associer les sources existantes",
         "description": "Surveillance en lecture seule des entités Home Assistant existantes, sans identifiants Viessmann ni appels API supplémentaires. Sélectionnez d'abord les appareils. Le débit et le mode sont obligatoires ; le diagnostic actif exige aussi l'état de marche de la pompe. Ce n'est pas un dispositif de sécurité.",
         "data": {
@@ -60,7 +74,7 @@
           "fault_clear_values": "Valeurs d'absence de défaut"
         },
         "data_description": {
-          "min_flow_l_min": "Limite obligatoire propre à votre installation. Ce projet ne fournit aucun minimum universel ou fabricant.",
+          "min_flow_l_min": "Limite facultative propre à votre installation. Laissez vide si inconnue : alertes absolues désactivées. Aucun minimum universel ou fabricant n'est fourni.",
           "absolute_persistence_s": "Durée requise des observations admissibles de débit faible avant un incident urgent.",
           "relative_drop_pct": "Baisse par rapport à une référence saine fixe, explicitement confirmée, en conditions comparables.",
           "relative_persistence_s": "Durée requise d'une baisse relative comparable avant un incident à surveiller.",
@@ -112,6 +126,8 @@
       }
     },
     "error": {
+      "source_changed": "Les sources ont changé pendant la configuration. Vérifiez le récapitulatif et confirmez à nouveau.",
+      "already_configured": "Cet appareil possède déjà un moniteur Viessmann Guard.",
       "invalid_name": "Utilisez un nom non vide de 60 caractères maximum, sans retour à la ligne.",
       "invalid_number": "Saisissez un nombre fini respectant les limites affichées. Le nombre d'échantillons doit être entier.",
       "invalid_device": "Sélectionnez au moins un appareil existant.",
@@ -130,6 +146,10 @@
       "duplicate_recipient": "Deux entités sélectionnées désignent le même destinataire SMTP. N'en conservez qu'une.",
       "required_recipient": "Sélectionnez au moins un destinataire SMTP valide avant d'activer les emails.",
       "invalid_report_entity": "Choisissez une entité admissible et non privée appartenant à un appareil sélectionné."
+    },
+    "abort": {
+      "already_configured": "Cette PAC possède déjà un moniteur Viessmann Guard. Utilisez ses options.",
+      "source_changed": "La PAC ViCare choisie n'est plus disponible. Rétablissez son intégration puis réessayez."
     }
   },
   "options": {
@@ -138,11 +158,17 @@
         "title": "Options de Viessmann Guard",
         "description": "Modifiez les sources, les règles, l'autorisation des emails ou le contenu des rapports. Aucune option ne pilote la PAC.",
         "menu_options": {
+          "minimum": "Débit minimum de l'installation (facultatif)",
           "emails": "Emails et destinataires",
           "sources": "Sources de l'équipement",
           "rules": "Règles de détection",
           "report": "Contenu des rapports"
         }
+      },
+      "minimum": {
+        "title": "Débit minimum de l'installation",
+        "description": "Renseignez uniquement le minimum réel fourni par le constructeur ou l'installateur, en L/min. Laissez vide pour désactiver les alertes absolues. Modifier cette règle invalide la référence apprise, sans résoudre un incident actif. Aucun réglage de la PAC n'est modifié.",
+        "data": {"min_flow_l_min": "Débit minimum (L/min)"}
       },
       "sources": {
         "title": "Associer les sources existantes",
@@ -254,6 +280,7 @@
       }
     },
     "error": {
+      "already_configured": "Cet appareil possède déjà un moniteur Viessmann Guard.",
       "invalid_name": "Utilisez un nom non vide de 60 caractères maximum, sans retour à la ligne.",
       "invalid_number": "Saisissez un nombre fini respectant les limites affichées. Le nombre d'échantillons doit être entier.",
       "invalid_device": "Sélectionnez au moins un appareil existant.",
@@ -300,6 +327,7 @@
         "name": "Motif",
         "state": {
           "awaiting_observations": "Attente d'observations des sources",
+          "minimum_not_configured": "Observation / suivi relatif uniquement : débit minimum non configuré",
           "clock_moved_backwards": "L'horloge a reculé ; de nouvelles données sont nécessaires",
           "flow_unavailable": "Rapport de débit absent, indisponible ou inexploitable",
           "flow_stale": "Rapport de débit périmé",
@@ -409,6 +437,13 @@
     "confirmation_required": {"message": "L'étalonnage sain exige confirmed: true après vérification indépendante d'un fonctionnement sain et comparable."}
   },
   "services": {
+    "get_report": {
+      "name": "Lire le rapport d'observation",
+      "description": "Retourne localement un rapport de l'équipement choisi, sans email, modification des envois ni commande matérielle. Fonctionne avec les emails désactivés.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée Viessmann Guard dont l'équipement sélectionné figure dans le rapport."}
+      }
+    },
     "acknowledge": {
       "name": "Acquitter l'incident",
       "description": "Marquer l'incident comme vu, sans le résoudre ni piloter la PAC.",

@@ -5,7 +5,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ConfigEntryError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
@@ -19,15 +19,23 @@ type GuardConfigEntry = ConfigEntry[GuardRuntime]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    async def handle_action(call: ServiceCall) -> None:
+    async def handle_action(call: ServiceCall) -> ServiceResponse:
         entry = hass.config_entries.async_get_entry(call.data["entry_id"])
-        if entry is None or entry.domain != DOMAIN or not hasattr(entry, "runtime_data"):
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or not hasattr(entry, "runtime_data")
+            or entry.runtime_data.stopped
+        ):
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="entry_unavailable"
             )
+        if call.service == "get_report":
+            return dict(entry.runtime_data.observation_report())
         await entry.runtime_data.action(
             call.service, call.data.get("hours", 24), call.data.get("confirmed", False)
         )
+        return None
 
     for action in ("acknowledge", "snooze", "record_cleaning", "confirm_calibration", "test_email"):
         fields: dict[Any, Any] = {vol.Required("entry_id"): cv.string}
@@ -38,6 +46,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if action == "confirm_calibration":
             fields[vol.Required("confirmed")] = vol.All(cv.boolean, vol.Equal(True))
         hass.services.async_register(DOMAIN, action, handle_action, schema=vol.Schema(fields))
+    hass.services.async_register(
+        DOMAIN,
+        "get_report",
+        handle_action,
+        schema=vol.Schema({vol.Required("entry_id"): cv.string}),
+        supports_response=SupportsResponse.ONLY,
+    )
     return True
 
 
@@ -77,4 +92,18 @@ async def async_migrate_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> b
     if entry.version != 1:
         _LOGGER.error("Unsupported Viessmann Guard configuration version: %s", entry.version)
         return False
+    if entry.minor_version < 3:
+        from .discovery import bind_sources
+        from .runtime import configuration
+
+        merged = bind_sources(hass, configuration(entry))
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                **entry.options,
+                "source_registry_ids": merged["source_registry_ids"],
+                "report_registry_ids": merged["report_registry_ids"],
+            },
+            minor_version=3,
+        )
     return True

@@ -14,7 +14,6 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import GuardConfigEntry
-from .const import public_state
 from .entity import GuardEntity
 from .reasons import REASON_CODES, describe_reason
 from .runtime import GuardRuntime
@@ -68,11 +67,11 @@ class GuardSensor(GuardEntity, SensorEntity):
     def native_value(self):
         result = self.runtime.engine.result
         if self.key == "state":
-            return public_state(result.state, result.incident_id is not None)
+            return self.runtime.diagnostic_state
         if self.key == "reason":
             return result.reason
         if self.key == "current_flow":
-            return result.flow
+            return self.runtime.observed_flow()
         if self.key == "reference_flow":
             return result.reference
         if self.key == "minimum_flow":
@@ -112,6 +111,13 @@ class GuardSensor(GuardEntity, SensorEntity):
                 "acknowledged": result.acked,
                 "snoozed_until": result.snoozed_until,
                 "anomaly_duration_seconds": result.anomaly_duration,
+                "absolute_alerts_configured": self.runtime.config["min_flow_l_min"] is not None,
+                "limitations": self.runtime.limitations,
+                "limitations_text": " ".join(
+                    describe_reason(reason, self.runtime.config["language"])
+                    for reason in self.runtime.limitations
+                ),
+                "source_statuses": self.runtime.config.get("discovery_statuses", {}),
             }
         if self.key == "email_status":
             return {"recipients": self.runtime.recipient_statuses}

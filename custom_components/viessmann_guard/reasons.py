@@ -2,6 +2,7 @@
 
 REASON_CODES = (
     "awaiting_observations",
+    "minimum_not_configured",
     "awaiting_post_restart_reports",
     "clock_moved_backwards",
     "flow_unavailable",
@@ -43,6 +44,10 @@ REASON_CODES = (
 )
 
 REASONS: dict[str, tuple[str, str]] = {
+    "minimum_not_configured": (
+        "Observation / relative monitoring only: the installation's minimum flow has not been set. Absolute low-flow alerts are disabled.",
+        "Observation / suivi relatif uniquement : débit minimum de l'installation non renseigné. Alertes de débit absolu désactivées.",
+    ),
     "awaiting_observations": ("Waiting for source reports.", "Attente des mesures des sources."),
     "mode_idle": (
         "Heat pump is idle; no low-flow diagnosis.",
