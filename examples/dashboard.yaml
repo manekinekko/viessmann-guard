@@ -1,0 +1,240 @@
+# Native Home Assistant dashboard template, not a discovered installation.
+# Replace EVERY demo_guard entity ID, including IDs inside markdown templates
+# and action targets. IDs depend on device names, renaming, and existing entities.
+# Default suffixes are stable keys, independent of translated display labels.
+# No custom cards, remote assets, fixed widths, or theme overrides are required.
+title: Viessmann Guard
+views:
+  - title: Surveillance
+    path: guard
+    type: masonry
+    icon: mdi:water-pump
+    cards:
+      - type: markdown
+        title: Surveillance du débit
+        content: |
+          Lecture seule : aucune commande de PAC ni requête Viessmann supplémentaire.
+          La surveillance continue lorsque ce tableau de bord est fermé.
+
+          **Ce n'est pas un dispositif de sécurité.** Un débit faible ne prouve pas
+          un filtre colmaté. Suivez les consignes du fabricant et consultez un
+          professionnel qualifié.
+
+          Les identifiants `demo_guard` sont des exemples à remplacer, pas des
+          entités découvertes. Aucun minimum fabricant n'est fourni.
+
+      - type: entities
+        title: État et motif
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_state
+            name: État
+          - entity: sensor.demo_guard_reason
+            name: Motif
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: acknowledged
+            name: Incident acquitté
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: incident_confirmed
+            name: Incident confirmé par des données fraîches
+
+      - type: entities
+        title: Débit et référence
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_current_flow
+            name: Débit actuel
+          - entity: sensor.demo_guard_minimum_flow
+            name: Minimum configuré pour l'installation
+          - entity: sensor.demo_guard_reference_flow
+            name: Référence saine fixe
+          - entity: sensor.demo_guard_decline
+            name: Baisse relative
+
+      - type: history-graph
+        title: Historique des débits
+        hours_to_show: 24
+        entities:
+          - entity: sensor.demo_guard_current_flow
+            name: Débit actuel
+          - entity: sensor.demo_guard_minimum_flow
+            name: Minimum configuré
+          - entity: sensor.demo_guard_reference_flow
+            name: Référence fixe
+
+      - type: entities
+        title: Fraîcheur et maintenance
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_telemetry_updated
+            name: Dernière mise à jour de la télémétrie HA
+          - entity: sensor.demo_guard_last_cleaned
+            name: Dernier nettoyage enregistré
+
+      - type: markdown
+        title: Lire les observations
+        content: |
+          La date de télémétrie ne prouve pas que chaque source est fraîche.
+          Chaque mesure du rapport a son propre statut, sa date et son âge.
+          `last_reported` est une date de rapport Home Assistant, pas l'instant
+          de mesure physique du contrôleur.
+
+          Des valeurs identiques peuvent être fraîches si la source les publie
+          à nouveau. Une valeur simplement conservée en cache peut devenir
+          périmée. Après un redémarrage, Guard attend de nouveaux rapports.
+
+          L'acquittement signifie « vu ». La suspension concerne uniquement les
+          rappels : les nouvelles tentatives d'alerte initiale et le passage à
+          une alerte urgente ne sont pas masqués. Son expiration ne résout pas
+          l'incident. Un nettoyage enregistré ne prouve pas la récupération
+          et ne remplace pas la référence. Il annule un étalonnage inachevé.
+
+      - type: entities
+        title: Emails
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: switch.demo_guard_emails_enabled
+            name: Activer les emails
+          - entity: sensor.demo_guard_email_status
+            name: État global des envois
+
+      - type: markdown
+        title: Résultat par destinataire
+        entity_id:
+          - sensor.demo_guard_email_status
+          - switch.demo_guard_emails_enabled
+        content: |
+          {% set labels = {
+            'disabled': 'Emails désactivés',
+            'ready': 'Prêt',
+            'pending': 'En attente',
+            'retry': 'Nouvelle tentative prévue',
+            'sending': 'Envoi en cours',
+            'accepted': 'Action SMTP terminée, réception non confirmée',
+            'failed': 'Échec',
+            'unknown': 'Résultat inconnu, aucun renvoi automatique',
+            'storage_error': 'Erreur de stockage'
+          } %}
+          {% set recipients = state_attr('sensor.demo_guard_email_status', 'recipients') %}
+          {% if not is_state('switch.demo_guard_emails_enabled', 'on') %}
+          **Emails désactivés ou état indisponible, tests compris.**
+          Les résultats ci-dessous peuvent concerner des envois antérieurs.
+          {% endif %}
+          {% if recipients is mapping and recipients | count > 0 %}
+          {% for recipient, result in recipients.items() %}
+          {% if result is mapping %}
+          **{{ (result.get('name') or ('Destinataire ' ~ loop.index)) | e }}**
+
+          {{ labels.get(result.get('status', 'unknown'), 'Statut non reconnu') }}.
+          Tentatives : {{ result.get('attempts', 0) }} / 3.
+          {% if result.get('updated_at') %}
+          Mise à jour : {{ result.get('updated_at') | timestamp_custom('%d/%m/%Y %H:%M', true) }}.
+          {% endif %}
+          {% if result.get('next_attempt_at') %}
+          Prochaine tentative : {{ result.get('next_attempt_at') | timestamp_custom('%d/%m/%Y %H:%M', true) }}.
+          {% endif %}
+          {% set test = result.get('test') %}
+          {% if test is mapping %}
+          Dernier test : {{ labels.get(test.get('status', 'unknown'), 'Statut non reconnu') }}.
+          Tentatives de test : {{ test.get('attempts', 0) }} / 3.
+          {% endif %}
+
+          {% endif %}
+          {% endfor %}
+          {% else %}
+          Aucun résultat disponible. Vérifiez les destinataires SMTP dans les
+          options ; l'absence de résultat ne signifie pas qu'un email a été livré.
+          {% endif %}
+
+          Définissez des noms utiles et neutres dans l'intégration SMTP native,
+          par exemple « Maintenance » ou « Maison », sans adresse ni information
+          personnelle. Les libellés affichés sont nettoyés ; les adresses brutes
+          et les identifiants d'entités ne sont pas affichés.
+          Les capteurs diagnostiques individuels restent disponibles sur la page
+          de l'appareil.
+
+          SMTP ne garantit pas la réception en boîte. Désactiver les emails ne
+          rappelle pas un envoi déjà en cours. La réactivation ne rejoue pas
+          d'anciennes alertes sans confirmation fraîche de l'incident courant.
+
+      - type: button
+        entity: button.demo_guard_acknowledge
+        name: Acquitter l'incident
+        icon: mdi:check-circle-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_acknowledge
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_snooze
+        name: Suspendre les rappels pendant 24 h
+        icon: mdi:bell-sleep-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_snooze
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_record_cleaning
+        name: Enregistrer un nettoyage effectué
+        icon: mdi:calendar-check-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_record_cleaning
+          confirmation:
+            text: Confirmer qu'un nettoyage a été effectué ? Cette action enregistre une date et annule l'étalonnage inachevé. Elle ne prouve pas la récupération, n'efface pas l'incident et ne remplace pas la référence acceptée.
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_confirm_calibration
+        name: "Je confirme un fonctionnement sain : étalonner"
+        icon: mdi:chart-bell-curve-cumulative
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_confirm_calibration
+          confirmation:
+            text: Confirmez-vous indépendamment un fonctionnement sain, stable et comparable ? Cette action autorise un étalonnage de la référence fixe avec de nouvelles mesures admissibles. Un nettoyage enregistré ne suffit pas.
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_test_email
+        name: Envoyer un email de test
+        icon: mdi:email-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_test_email
+          confirmation:
+            text: Envoyer un test aux destinataires configurés ? Les emails doivent être activés. La fin de l'action SMTP ne garantit pas la réception.
+        hold_action:
+          action: none

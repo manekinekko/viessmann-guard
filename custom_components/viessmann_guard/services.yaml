@@ -11,8 +11,8 @@ acknowledge:
           integration: viessmann_guard
 
 snooze:
-  name: Snooze notifications
-  description: Temporarily pause notifications. Snooze expiry is not recovery.
+  name: Pause reminders
+  description: Pause reminders only, not initial alert retries or urgent escalation. Expiry is not recovery.
   fields:
     entry_id:
       name: Monitor
@@ -23,7 +23,7 @@ snooze:
           integration: viessmann_guard
     hours:
       name: Hours
-      description: Snooze duration from 1 to 168 hours.
+      description: Reminder pause duration from 1 to 168 hours.
       required: true
       default: 24
       selector:

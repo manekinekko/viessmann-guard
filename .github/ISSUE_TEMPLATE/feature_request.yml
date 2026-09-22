@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a read-only monitoring, reporting, or usability improvement.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep proposals read-only with respect to the heat pump. Do not include
+        credentials, private addresses, location, serial numbers, or raw diagnostics.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who needs this and what cannot they do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include how missing/stale evidence and disabled emails should behave.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Available evidence and compatibility
+      description: |
+        If relevant, give HA/source-integration versions, neutral source roles,
+        units and synthetic examples. Describe alternatives without private data.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope and privacy
+      options:
+        - label: This proposal does not require heat-pump control or additional Viessmann API requests.
+          required: true
+        - label: I removed sensitive information and raw diagnostic exports.
+          required: true

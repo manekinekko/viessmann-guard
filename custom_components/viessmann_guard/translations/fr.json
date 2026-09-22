@@ -92,8 +92,8 @@
         },
         "data_description": {
           "emails_enabled": "Même réglage persistant que l'interrupteur. La réactivation exige une nouvelle confirmation de l'incident courant, sans rejouer d'anciennes alertes.",
-          "recipients": "Jusqu'à 20 entités de destinataires SMTP natifs. Le registre et les sous-entrées sont vérifiés ; tous les alias équivalents ne sont pas détectables.",
-          "reminder_hours": "Intervalle de 1 à 720 heures. L'acquittement et la suspension ne résolvent pas l'incident.",
+          "recipients": "Jusqu'à 20 entités SMTP natives avec des noms utiles et neutres. Le registre et les sous-entrées sont vérifiés ; tous les alias équivalents ne sont pas détectables.",
+          "reminder_hours": "Intervalle de 1 à 720 heures. La suspension concerne uniquement les rappels, pas les nouvelles tentatives d'alerte initiale ni le passage à une alerte urgente. Elle ne résout pas l'incident.",
           "watch_email": "Notifier aussi une baisse relative persistante au stade de surveillance. Désactivé par défaut.",
           "language": "Langue des emails : en pour anglais, fr pour français. Les entités suivent la langue de l'interface HA."
         }
@@ -232,8 +232,8 @@
         },
         "data_description": {
           "emails_enabled": "Réglage partagé avec l'interrupteur persistant. Après réactivation, l'incident courant doit être confirmé par de nouvelles données.",
-          "recipients": "Jusqu'à 20 destinataires SMTP natifs validés. Le domaine est normalisé, la casse avant @ est conservée.",
-          "reminder_hours": "Intervalle de 1 à 720 heures, sous réserve de l'acquittement et de la suspension.",
+          "recipients": "Jusqu'à 20 destinataires SMTP natifs validés. Utilisez des noms neutres sans adresse. Le domaine est normalisé, la casse avant @ est conservée.",
+          "reminder_hours": "Intervalle de 1 à 720 heures. Une suspension des rappels ne bloque ni les nouvelles tentatives d'alerte initiale ni le passage à une alerte urgente.",
           "watch_email": "Autoriser les emails pour les incidents de baisse relative persistante.",
           "language": "Langue des rapports : en (anglais) ou fr (français), indépendamment de l'interface HA."
         }
@@ -275,7 +275,7 @@
       "state": {
         "name": "État",
         "state": {
-          "normal": "Évaluation normale ou suspendue ; voir le motif",
+          "normal": "Normal ou au repos ; voir le motif",
           "learning": "Démarrage ou étalonnage",
           "watch": "À surveiller",
           "urgent": "Urgent",
@@ -283,11 +283,12 @@
         },
         "state_attributes": {
           "reason": {"name": "Code du motif"},
+          "reason_text": {"name": "Explication du motif"},
           "incident_id": {"name": "Identifiant d'incident"},
           "incident_severity": {"name": "Gravité de l'incident"},
           "incident_confirmed": {"name": "Incident confirmé par des données fraîches"},
           "acknowledged": {"name": "Acquitté"},
-          "snoozed_until": {"name": "Notifications suspendues jusqu'au"},
+          "snoozed_until": {"name": "Rappels suspendus jusqu'au"},
           "anomaly_duration_seconds": {"name": "Durée de l'anomalie (secondes)"}
         }
       },
@@ -370,6 +371,7 @@
           "storage_error": "Erreur de stockage"
         },
         "state_attributes": {
+          "name": {"name": "Libellé neutre du destinataire"},
           "status": {"name": "Statut d'envoi"},
           "attempts": {"name": "Tentatives"},
           "updated_at": {"name": "Statut mis à jour"},
@@ -386,7 +388,7 @@
     },
     "button": {
       "acknowledge": {"name": "Acquitter"},
-      "snooze": {"name": "Suspendre pendant 24 h"},
+      "snooze": {"name": "Suspendre les rappels pendant 24 h"},
       "record_cleaning": {"name": "Enregistrer un nettoyage"},
       "confirm_calibration": {"name": "Je confirme un fonctionnement sain : étalonner"},
       "test_email": {"name": "Envoyer un email de test"}
@@ -411,11 +413,11 @@
       }
     },
     "snooze": {
-      "name": "Suspendre les notifications",
-      "description": "Suspendre temporairement les notifications. L'expiration n'est pas une récupération et ne change pas la référence.",
+      "name": "Suspendre les rappels",
+      "description": "Suspendre uniquement les rappels, pas les nouvelles tentatives d'alerte initiale ni le passage à une alerte urgente. L'expiration n'est pas une récupération et ne change pas la référence.",
       "fields": {
         "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."},
-        "hours": {"name": "Heures", "description": "Durée de suspension de 1 à 168 heures. Le bouton du tableau de bord utilise 24 heures."}
+        "hours": {"name": "Heures", "description": "Durée de suspension des rappels de 1 à 168 heures. Le bouton du tableau de bord utilise 24 heures."}
       }
     },
     "record_cleaning": {

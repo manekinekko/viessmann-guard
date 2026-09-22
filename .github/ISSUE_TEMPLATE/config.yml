@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the setup and operating limits
+    url: https://github.com/manekinekko/viessmann-guard#readme
+    about: Check source mapping, freshness, SMTP behavior, and the safety limits before reporting.
+  - name: Guide en français
+    url: https://github.com/manekinekko/viessmann-guard/blob/main/docs/guide.fr.md
+    about: Installation, étalonnage, emails et confidentialité.

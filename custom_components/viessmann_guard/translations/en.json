@@ -92,8 +92,8 @@
         },
         "data_description": {
           "emails_enabled": "Same persistent setting as the email switch. Re-enabling requires fresh confirmation of the current incident, not an old backlog.",
-          "recipients": "Select up to 20 native SMTP recipient entities. Registry/subentry identity is checked; equivalent aliases cannot always be detected.",
-          "reminder_hours": "Reminder interval from 1 to 720 hours. Acknowledgement and snooze do not resolve an incident.",
+          "recipients": "Select up to 20 native SMTP recipient entities with useful neutral names. Registry/subentry identity is checked; equivalent aliases cannot always be detected.",
+          "reminder_hours": "Reminder interval from 1 to 720 hours. Snooze pauses reminders only, not initial alert retries or urgent escalation. It does not resolve an incident.",
           "watch_email": "Also notify on a sustained relative-decline watch. Off by default.",
           "language": "Email report language: en for English, fr for French. HA entity labels follow your interface language."
         }
@@ -232,8 +232,8 @@
         },
         "data_description": {
           "emails_enabled": "Shared with the persistent email switch. Re-enable only sends after fresh confirmation of the current incident.",
-          "recipients": "Up to 20 validated native SMTP recipients. Domain case is normalized; local-part case is preserved.",
-          "reminder_hours": "Reminder interval from 1 to 720 hours, subject to acknowledgement and snooze.",
+          "recipients": "Up to 20 validated native SMTP recipients. Use neutral friendly names without addresses. Domain case is normalized; local-part case is preserved.",
+          "reminder_hours": "Reminder interval from 1 to 720 hours. A reminder pause does not block initial alert retries or urgent escalation.",
           "watch_email": "Opt in to emails for sustained relative-decline watch incidents.",
           "language": "Report language: en (English) or fr (French), independent of the HA interface language."
         }
@@ -275,7 +275,7 @@
       "state": {
         "name": "State",
         "state": {
-          "normal": "Normal or paused evaluation; check the reason",
+          "normal": "Normal or idle; check the reason",
           "learning": "Startup or calibration",
           "watch": "Watch",
           "urgent": "Urgent",
@@ -283,11 +283,12 @@
         },
         "state_attributes": {
           "reason": {"name": "Reason code"},
+          "reason_text": {"name": "Reason explanation"},
           "incident_id": {"name": "Incident ID"},
           "incident_severity": {"name": "Incident severity"},
           "incident_confirmed": {"name": "Incident freshly confirmed"},
           "acknowledged": {"name": "Acknowledged"},
-          "snoozed_until": {"name": "Notifications snoozed until"},
+          "snoozed_until": {"name": "Reminders paused until"},
           "anomaly_duration_seconds": {"name": "Anomaly duration (seconds)"}
         }
       },
@@ -370,6 +371,7 @@
           "storage_error": "Storage error"
         },
         "state_attributes": {
+          "name": {"name": "Neutral recipient label"},
           "status": {"name": "Delivery status"},
           "attempts": {"name": "Attempts"},
           "updated_at": {"name": "Status updated"},
@@ -386,7 +388,7 @@
     },
     "button": {
       "acknowledge": {"name": "Acknowledge"},
-      "snooze": {"name": "Snooze for 24 hours"},
+      "snooze": {"name": "Pause reminders for 24 hours"},
       "record_cleaning": {"name": "Record cleaning"},
       "confirm_calibration": {"name": "I confirm healthy operation: calibrate"},
       "test_email": {"name": "Send test email"}
@@ -411,11 +413,11 @@
       }
     },
     "snooze": {
-      "name": "Snooze notifications",
-      "description": "Temporarily pause notifications. Expiry is not recovery and does not change the reference.",
+      "name": "Pause reminders",
+      "description": "Pause reminders only, not initial alert retries or urgent escalation. Expiry is not recovery and does not change the reference.",
       "fields": {
         "entry_id": {"name": "Monitor", "description": "The Viessmann Guard configuration entry."},
-        "hours": {"name": "Hours", "description": "Snooze duration from 1 to 168 hours. The dashboard button uses 24 hours."}
+        "hours": {"name": "Hours", "description": "Reminder pause duration from 1 to 168 hours. The dashboard button uses 24 hours."}
       }
     },
     "record_cleaning": {
