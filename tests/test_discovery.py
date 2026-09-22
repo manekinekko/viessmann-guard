@@ -66,7 +66,7 @@ def test_renamed_localized_names_do_not_define_roles(hass, vicare_device, langua
     assert candidate.config["fault_entity"] is None  # A generic error is not a low-flow fault.
     assert candidate.config["emails_enabled"] is False
     assert candidate.config["recipients"] == []
-    assert candidate.config["language"] == language
+    assert candidate.config["language"] == "en"
 
 
 @pytest.mark.parametrize("link", [False, True])

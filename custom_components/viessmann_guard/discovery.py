@@ -120,7 +120,7 @@ def discover(hass: HomeAssistant) -> list[Candidate]:
             "excluded_modes": ["defrost"],
             "pump_on_values": ["on"],
             "pump_off_values": ["off"],
-            "language": "fr" if hass.config.language.startswith("fr") else "en",
+            "language": "en",
         }
         statuses = {}
         for role in SOURCE_ROLES:

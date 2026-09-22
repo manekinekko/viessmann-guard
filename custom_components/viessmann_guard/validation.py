@@ -8,6 +8,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from .const import (
+    LANGUAGES,
     MAX_RECIPIENTS,
     NUMERIC_RULES,
     PRESSURE_UNITS,
@@ -141,6 +142,8 @@ def _valid_number(value: Any, minimum: float, maximum: float, *, integer=False) 
 
 def validate_emails(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]:
     errors = {}
+    if data.get("language", "en") not in LANGUAGES:
+        errors["language"] = "invalid_language"
     if not _valid_number(data.get("reminder_hours"), 1, 720):
         errors["reminder_hours"] = "invalid_number"
     try:

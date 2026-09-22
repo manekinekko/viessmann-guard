@@ -29,6 +29,17 @@ KEYS = (
     "last_cleaned",
     "email_status",
 )
+DELIVERY_STATES = [
+    "disabled",
+    "ready",
+    "pending",
+    "retry",
+    "sending",
+    "accepted",
+    "failed",
+    "unknown",
+    "storage_error",
+]
 
 
 async def async_setup_entry(
@@ -60,6 +71,9 @@ class GuardSensor(GuardEntity, SensorEntity):
         elif key == "reason":
             self._attr_device_class = SensorDeviceClass.ENUM
             self._attr_options = list(REASON_CODES)
+        elif key == "email_status":
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = DELIVERY_STATES
         if key in ("email_status", "reason"):
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -104,7 +118,7 @@ class GuardSensor(GuardEntity, SensorEntity):
             return {
                 "engine_phase": result.state,
                 "reason": result.reason,
-                "reason_text": describe_reason(result.reason, self.runtime.config["language"]),
+                "reason_text": describe_reason(result.reason, self.runtime.hass.config.language),
                 "incident_id": result.incident_id,
                 "incident_severity": result.incident_severity,
                 "incident_confirmed": result.incident_confirmed,
@@ -114,7 +128,7 @@ class GuardSensor(GuardEntity, SensorEntity):
                 "absolute_alerts_configured": self.runtime.config["min_flow_l_min"] is not None,
                 "limitations": self.runtime.limitations,
                 "limitations_text": " ".join(
-                    describe_reason(reason, self.runtime.config["language"])
+                    describe_reason(reason, self.runtime.hass.config.language)
                     for reason in self.runtime.limitations
                 ),
                 "source_statuses": self.runtime.config.get("discovery_statuses", {}),
@@ -126,6 +140,8 @@ class GuardSensor(GuardEntity, SensorEntity):
 
 class RecipientSensor(GuardEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = DELIVERY_STATES
 
     def __init__(self, runtime: GuardRuntime, recipient: str) -> None:
         key = hashlib.sha256(recipient.encode()).hexdigest()[:16]

@@ -1,5 +1,7 @@
 """Human-readable diagnostic explanations, also exposed in the native dashboard."""
 
+from .const import normalize_language
+
 REASON_CODES = (
     "awaiting_observations",
     "minimum_not_configured",
@@ -94,8 +96,8 @@ REASONS: dict[str, tuple[str, str]] = {
         "Baisse du débit observée : la durée de persistance configurée n'est pas encore confirmée.",
     ),
     "baseline_unconfirmed": (
-        "No confirmed healthy reference; only absolute monitoring is available.",
-        "Aucune référence saine confirmée : seule la surveillance du minimum est disponible.",
+        "No confirmed healthy reference; relative monitoring is unavailable.",
+        "Aucune référence saine confirmée : surveillance relative indisponible.",
     ),
     "baseline_context_mismatch": (
         "Reference not comparable in this mode or circulator condition.",
@@ -195,32 +197,132 @@ REASONS: dict[str, tuple[str, str]] = {
     ),
 }
 
+TRANSLATED_REASONS = {
+    "es": {
+        "awaiting_observations": "Esperando informes de las fuentes.",
+        "minimum_not_configured": "Solo observación / seguimiento relativo: no se ha configurado el caudal mínimo. Las alertas absolutas están desactivadas.",
+        "awaiting_post_restart_reports": "Esperando informes nuevos tras el reinicio.",
+        "clock_moved_backwards": "El reloj ha retrocedido; se reinician los tiempos de observación.",
+        "flow_invalid": "El caudal no es válido o su unidad no es compatible.",
+        "flow_out_of_order": "La marca de tiempo del caudal ha retrocedido; diagnóstico en pausa.",
+        "flow_changed_without_report": "El caudal cambió sin una nueva marca de tiempo.",
+        "mode_unmapped": "Modo de funcionamiento sin correspondencia; diagnóstico no disponible.",
+        "mode_idle": "La bomba de calor está en reposo; no se diagnostica caudal bajo.",
+        "mode_excluded": "Modo excluido o desescarche; seguimiento heurístico en pausa.",
+        "pump_not_configured": "Seleccione una fuente de estado del circulador para confirmar que funciona.",
+        "pump_unmapped": "Estado del circulador sin correspondencia; diagnóstico no disponible.",
+        "pump_off": "El circulador está parado; no se diagnostica caudal bajo.",
+        "pump_speed_invalid": "La velocidad del circulador debe ser un porcentaje finito entre 0 y 100.",
+        "fault_unmapped": "Estado de fallo sin correspondencia; no se supone que sea un fallo de caudal.",
+        "native_fault": "Hay un fallo nativo asociado explícitamente al caudal; su causa requiere investigación.",
+        "startup_grace": "Esperando circulación estable tras el arranque o un cambio de contexto.",
+        "baseline_unconfirmed": "No hay una referencia saludable confirmada; el seguimiento relativo no está disponible.",
+        "baseline_context_mismatch": "La referencia no es comparable con este modo o velocidad del circulador.",
+        "absolute_low_pending": "Caudal bajo observado; aún no se cumple la duración configurada.",
+        "absolute_low_flow": "Caudal persistentemente inferior al mínimo de la instalación.",
+        "relative_decline_pending": "Descenso observado; aún no se cumple la duración configurada.",
+        "relative_flow_decline": "Descenso persistente respecto a una referencia saludable comparable.",
+        "incident_pending_revalidation": "Incidente guardado pendiente de confirmación reciente; no se cuenta el tiempo sin observación.",
+        "recovery_pending": "Mediciones saludables observadas; esperando recuperación estable.",
+        "recovery_hysteresis": "El incidente se conserva hasta superar el margen de recuperación.",
+        "healthy": "Las mediciones comparables cumplen los criterios de recuperación configurados.",
+        "calibration_sampling": "Recopilando muestras saludables representativas tras su confirmación.",
+        "calibration_complete": "Referencia saludable establecida y fijada.",
+        "calibration_cancelled_by_cleaning": "Limpieza registrada; calibración pendiente cancelada y referencia existente conservada.",
+    },
+    "de": {
+        "awaiting_observations": "Warten auf Meldungen der Quellen.",
+        "minimum_not_configured": "Nur Beobachtung / relative Überwachung: Mindestdurchfluss nicht festgelegt. Absolute Warnungen sind deaktiviert.",
+        "awaiting_post_restart_reports": "Warten auf neue Meldungen nach dem Neustart.",
+        "clock_moved_backwards": "Die Uhr wurde zurückgestellt; Beobachtungszeiten werden neu gestartet.",
+        "flow_invalid": "Durchfluss ungültig oder Einheit nicht unterstützt.",
+        "flow_out_of_order": "Der Durchflusszeitstempel liegt vor dem vorherigen; Diagnose pausiert.",
+        "flow_changed_without_report": "Durchfluss ohne neuen Meldungszeitstempel geändert.",
+        "mode_unmapped": "Betriebsart nicht zugeordnet; Diagnose nicht verfügbar.",
+        "mode_idle": "Wärmepumpe im Leerlauf; keine Diagnose eines niedrigen Durchflusses.",
+        "mode_excluded": "Ausgeschlossene Betriebsart oder Abtauung; heuristische Überwachung pausiert.",
+        "pump_not_configured": "Wählen Sie eine Statusquelle der Umwälzpumpe, um deren Betrieb zu bestätigen.",
+        "pump_unmapped": "Status der Umwälzpumpe nicht zugeordnet; Diagnose nicht verfügbar.",
+        "pump_off": "Umwälzpumpe steht; keine Diagnose eines niedrigen Durchflusses.",
+        "pump_speed_invalid": "Die Pumpendrehzahl muss ein endlicher Prozentwert zwischen 0 und 100 sein.",
+        "fault_unmapped": "Fehlerstatus nicht zugeordnet; ein Durchflussfehler wird nicht unterstellt.",
+        "native_fault": "Ein ausdrücklich zugeordneter nativer Durchflussfehler ist aktiv; die Ursache muss untersucht werden.",
+        "startup_grace": "Warten auf stabile Zirkulation nach dem Start oder einem Kontextwechsel.",
+        "baseline_unconfirmed": "Keine bestätigte gesunde Referenz; relative Überwachung nicht verfügbar.",
+        "baseline_context_mismatch": "Referenz für diese Betriebsart oder Pumpendrehzahl nicht vergleichbar.",
+        "absolute_low_pending": "Niedriger Durchfluss beobachtet; festgelegte Dauer noch nicht erreicht.",
+        "absolute_low_flow": "Durchfluss dauerhaft unter dem Mindestwert der Anlage.",
+        "relative_decline_pending": "Rückgang beobachtet; festgelegte Dauer noch nicht erreicht.",
+        "relative_flow_decline": "Dauerhafter Rückgang gegenüber einer vergleichbaren gesunden Referenz.",
+        "incident_pending_revalidation": "Gespeicherter Vorfall wartet auf neue Bestätigung; Ausfallzeiten werden nicht mitgezählt.",
+        "recovery_pending": "Gesunde Messwerte beobachtet; Warten auf stabile Erholung.",
+        "recovery_hysteresis": "Vorfall bleibt bestehen, bis die Erholungsmarge überschritten wird.",
+        "healthy": "Vergleichbare Messwerte erfüllen die festgelegten Erholungskriterien.",
+        "calibration_sampling": "Nach Ihrer Bestätigung werden repräsentative gesunde Messwerte gesammelt.",
+        "calibration_complete": "Gesunde Referenz erstellt und festgeschrieben.",
+        "calibration_cancelled_by_cleaning": "Reinigung erfasst; laufende Kalibrierung beendet, vorhandene Referenz beibehalten.",
+    },
+}
+
 
 def describe_reason(code: str, language: str) -> str:
+    language = normalize_language(language)
+    code = {
+        "idle": "mode_idle",
+        "unknown_mode": "mode_unmapped",
+        "excluded_mode": "mode_excluded",
+        "native_flow_fault": "native_fault",
+        "relative_degradation": "relative_flow_decline",
+        "calibrating": "calibration_sampling",
+        "baseline_required": "baseline_unconfirmed",
+        "awaiting_fresh_report": "awaiting_post_restart_reports",
+    }.get(code, code)
+    index = ("en", "fr", "es", "de").index(language)
     roles = {
-        "flow": ("Flow", "Débit"),
-        "mode": ("Operating mode", "Mode de fonctionnement"),
-        "pump": ("Circulator state", "État du circulateur"),
-        "pump_speed": ("Circulator speed", "Vitesse du circulateur"),
-        "fault": ("Fault signal", "Signal de défaut"),
+        "flow": ("Flow", "Débit", "Caudal", "Durchfluss"),
+        "mode": (
+            "Operating mode",
+            "Mode de fonctionnement",
+            "Modo de funcionamiento",
+            "Betriebsart",
+        ),
+        "pump": (
+            "Circulator state",
+            "État du circulateur",
+            "Estado del circulador",
+            "Umwälzpumpenstatus",
+        ),
+        "pump_speed": (
+            "Circulator speed",
+            "Vitesse du circulateur",
+            "Velocidad del circulador",
+            "Pumpendrehzahl",
+        ),
+        "fault": ("Fault signal", "Signal de défaut", "Señal de fallo", "Fehlersignal"),
     }
     for suffix in ("_stale", "_unavailable"):
         role = code.removesuffix(suffix)
         if code.endswith(suffix) and role in roles:
-            en, fr = roles[role]
-            if suffix == "_stale":
-                return (
-                    f"{fr} : mesure trop ancienne."
-                    if language == "fr"
-                    else f"{en}: report is stale."
+            detail = (
+                (
+                    "report is stale.",
+                    "mesure trop ancienne.",
+                    "informe demasiado antiguo.",
+                    "Meldung veraltet.",
                 )
-            return (
-                f"{fr} : mesure manquante, invalide ou indisponible."
-                if language == "fr"
-                else f"{en}: report is missing, invalid or unavailable."
+                if suffix == "_stale"
+                else (
+                    "report is missing, invalid or unavailable.",
+                    "mesure manquante, invalide ou indisponible.",
+                    "informe ausente, inválido o no disponible.",
+                    "Meldung fehlt, ist ungültig oder nicht verfügbar.",
+                )
             )
+            return f"{roles[role][index]}: {detail[index]}"
+    if language in TRANSLATED_REASONS and code in TRANSLATED_REASONS[language]:
+        return TRANSLATED_REASONS[language][code]
     pair = REASONS.get(code)
     if pair:
         return pair[1 if language == "fr" else 0]
     # Preserve an unknown future engine reason visibly; never replace it with "healthy".
-    return f"{'Diagnostic' if language == 'fr' else 'Diagnosis'}: {code.replace('_', ' ')}"
+    return f"{('Diagnosis', 'Diagnostic', 'Diagnóstico', 'Diagnose')[index]}: {code}"

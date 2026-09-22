@@ -10,6 +10,7 @@ from homeassistant.helpers import selector
 from .const import (
     DOMAIN,
     EMAIL_DEFAULTS,
+    LANGUAGES,
     LIST_SETTINGS,
     MAX_REPORT_ENTITIES,
     NUMERIC_RULES,
@@ -64,18 +65,25 @@ def rules_schema() -> vol.Schema:
     return vol.Schema(schema)
 
 
-def emails_schema() -> vol.Schema:
+def emails_schema(current: dict[str, Any] | None = None) -> vol.Schema:
+    values = {**EMAIL_DEFAULTS, **(current or {})}
     return vol.Schema(
         {
-            vol.Required("emails_enabled", default=False): bool,
-            vol.Required("recipients", default=[]): selector.EntitySelector(
+            vol.Required("emails_enabled", default=values["emails_enabled"]): bool,
+            vol.Required("recipients", default=values["recipients"]): selector.EntitySelector(
                 {"filter": [{"domain": "notify", "integration": "smtp"}], "multiple": True}
             ),
-            vol.Required("reminder_hours", default=24): vol.All(
+            vol.Required("reminder_hours", default=values["reminder_hours"]): vol.All(
                 vol.Coerce(float), vol.Range(min=1, max=720)
             ),
-            vol.Required("watch_email", default=False): bool,
-            vol.Required("language", default="en"): vol.In(["en", "fr"]),
+            vol.Required("watch_email", default=values["watch_email"]): bool,
+            vol.Required("language", default=values["language"]): selector.SelectSelector(
+                {
+                    "options": list(LANGUAGES),
+                    "translation_key": "email_language",
+                    "mode": selector.SelectSelectorMode.DROPDOWN,
+                }
+            ),
         }
     )
 
@@ -186,10 +194,9 @@ class GuardFlow(ConfigFlow, domain=DOMAIN):
         )
 
     def _summary(self, candidate: Candidate) -> dict[str, str]:
-        french = self.hass.config.language.startswith("fr")
         from .onboarding import summary
 
-        return {"summary": summary(candidate.name, candidate.statuses, french)}
+        return {"summary": summary(candidate.name, candidate.statuses, self.hass.config.language)}
 
     async def async_step_manual(self, user_input=None) -> ConfigFlowResult:
         errors = {}
@@ -267,6 +274,7 @@ class GuardOptionsFlow(OptionsFlow):
                 step == "emails"
                 and user_input.get("emails_enabled") is False
                 and runtime is not None
+                and runtime.config["emails_enabled"]
             ):
                 # An invalid/removed recipient must never prevent switching mail off.
                 await runtime.set_emails(False)
@@ -303,7 +311,11 @@ class GuardOptionsFlow(OptionsFlow):
             if not errors:
                 # Invalidate dispatch synchronously before options persistence/reload.
                 runtime = getattr(self.config_entry, "runtime_data", None)
-                if runtime is not None:
+                if runtime is not None and any(
+                    merged.get(key) != current.get(key)
+                    for key in set(merged) | set(current)
+                    if key != "language"
+                ):
                     runtime.prepare_options(merged)
                 return self.async_create_entry(data=merged)
         return self.async_show_form(
@@ -316,7 +328,9 @@ class GuardOptionsFlow(OptionsFlow):
         )
 
     async def async_step_emails(self, user_input=None) -> ConfigFlowResult:
-        return await self._step("emails", emails_schema(), user_input)
+        return await self._step(
+            "emails", emails_schema(configuration(self.config_entry)), user_input
+        )
 
     async def async_step_sources(self, user_input=None) -> ConfigFlowResult:
         return await self._step("sources", sources_schema(optional=True), user_input)

@@ -13,6 +13,7 @@ from test_integration import setup_guard
 from custom_components.viessmann_guard.const import (
     DOMAIN,
     EMAIL_DEFAULTS,
+    LANGUAGES,
     LIST_SETTINGS,
     NUMERIC_RULES,
 )
@@ -121,8 +122,9 @@ async def test_legacy_entry_absent_or_false_email_setting_and_omitted_options(
 
 
 @pytest.mark.parametrize("payload", [{}, {"emails_enabled": False, "recipients": []}])
+@pytest.mark.parametrize("language", LANGUAGES)
 async def test_manual_http_creation_without_smtp_and_omitted_defaults(
-    hass, hass_client, source_config, payload
+    hass, hass_client, source_config, payload, language
 ):
     assert_no_smtp(hass)
     assert await async_setup_component(hass, "config", {})
@@ -147,7 +149,7 @@ async def test_manual_http_creation_without_smtp_and_omitted_defaults(
     response = await client.post(url, json=rules)
     assert response.status == 200
     assert (await response.json())["step_id"] == "emails"
-    response = await client.post(url, json=payload)
+    response = await client.post(url, json={**payload, "language": language})
     assert response.status == 200
     assert (await response.json())["step_id"] == "report"
     response = await client.post(url, json={})
@@ -156,6 +158,7 @@ async def test_manual_http_creation_without_smtp_and_omitted_defaults(
     await hass.async_block_till_done()
     (entry,) = hass.config_entries.async_entries(DOMAIN)
     assert entry.data["emails_enabled"] is False
+    assert entry.data["language"] == language
     assert_off(hass, entry)
 
 

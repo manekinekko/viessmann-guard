@@ -323,7 +323,7 @@ def test_missing_and_stale_are_both_explicit_even_for_partial_telemetry():
 
 
 def test_unknown_language_and_kind_fall_back_to_english_report(snapshot):
-    title, plain, html = render_report(snapshot, "<script>alert(1)</script>", "de")
+    title, plain, html = render_report(snapshot, "<script>alert(1)</script>", "pt")
     assert title == "Heat pump: Hydraulic flow report"
     assert "Current observations" in plain
     assert '<html lang="en">' in html

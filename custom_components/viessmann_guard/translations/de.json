@@ -1,0 +1,709 @@
+{
+  "title": "Viessmann Guard",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Automatische ViCare-Einrichtung",
+        "description": "Keine unterstützte ViCare-Wärmepumpe erkannt. Prüfen Sie die aktivierten Entitäten der nativen ViCare-Integration. Für andere Geräte verwenden Sie die erweiterte manuelle Einrichtung. Einstellungen werden nicht geraten.",
+        "menu_options": {
+          "manual": "Erweiterte manuelle Einrichtung"
+        }
+      },
+      "select_device": {
+        "title": "Wärmepumpe auswählen",
+        "description": "Jede Auswahl ist ein eigenes ViCare-Gerät mit Wärmepumpentelemetrie, kein Gateway. Nur dessen Quellen werden überwacht. Vergeben Sie bei gleichen Namen zunächst eindeutige Namen in ViCare.",
+        "data": {
+          "device_id": "Wärmepumpe"
+        }
+      },
+      "confirm": {
+        "title": "Ihre Wärmepumpe ist zur Beobachtung bereit",
+        "description": "{summary}"
+      },
+      "manual": {
+        "title": "Gerätequellen zuordnen",
+        "description": "Rein lesende Überwachung vorhandener Entitäten. Keine Viessmann-Zugangsdaten oder zusätzlichen API-Abfragen. Geräte auswählen; Durchfluss und Betriebsart sind erforderlich. Aktive Diagnose benötigt eine Pumpenstatusquelle. Keine Sicherheitseinrichtung.",
+        "data": {
+          "name": "Name der Überwachung",
+          "device_ids": "Anlagengeräte",
+          "flow_entity": "Volumendurchfluss",
+          "mode_entity": "Betriebsart",
+          "pump_entity": "Betriebsstatus der Umwälzpumpe",
+          "pump_speed_entity": "Pumpendrehzahl",
+          "fault_entity": "Nativer Fehlerstatus",
+          "supply_temperature_entity": "Vorlauftemperatur",
+          "return_temperature_entity": "Rücklauftemperatur",
+          "pressure_entity": "Hydraulikdruck",
+          "outside_temperature_entity": "Außentemperatur",
+          "compressor_entity": "Verdichterstatus",
+          "valve_entity": "Ventilstatus"
+        },
+        "data_description": {
+          "name": "Kurzer Name, zum Beispiel Demo Guard. Die tatsächlichen Entitäts-IDs können abweichen.",
+          "device_ids": "Nur aktivierte Quellen dieser Geräte sind zulässig.",
+          "flow_entity": "Endliche, nicht negative Zahl mit ausdrücklich angegebener unterstützter Volumeneinheit. Fehlende Einheiten werden nicht angenommen.",
+          "mode_entity": "Ordnen Sie die Rohzustände im nächsten Schritt aktiven, ruhenden oder ausgeschlossenen Betriebsarten zu.",
+          "pump_entity": "Für die aktive Durchflussdiagnose erforderlich. Ohne diese Quelle ist diese Diagnose nicht verfügbar.",
+          "pump_speed_entity": "Optionaler Prozentwert von 0 bis 100 mit Einheit %. Dient dem Vergleich ähnlicher Pumpenbedingungen.",
+          "fault_entity": "Optional. Erfordert ausdrückliche Fehler- und Fehlerfrei-Werte. Ein nativer Fehler bestimmt nicht die physische Ursache.",
+          "supply_temperature_entity": "Optionale Vorlauftemperatur für den Bericht.",
+          "return_temperature_entity": "Optionale Rücklauftemperatur für den Bericht.",
+          "pressure_entity": "Optionaler Kreislaufdruck für den Bericht, keine Gerätesteuerung.",
+          "outside_temperature_entity": "Optionale Außentemperatur für den Bericht.",
+          "compressor_entity": "Optionale Verdichtertelemetrie. Keine Befehle an den Verdichter.",
+          "valve_entity": "Optionale Ventiltelemetrie. Keine Befehle an das Ventil."
+        }
+      },
+      "rules": {
+        "title": "Beurteilungs- und Vergleichsregeln festlegen",
+        "description": "Verwenden Sie den anlagenspezifischen Mindestwert aus verlässlichen Unterlagen oder von einer Fachkraft. Beispielwerte sind keine Herstellergrenzen. Rohzustände zuordnen, Abtauung ausschließen und unvereinbare Kategorien trennen.",
+        "data": {
+          "min_flow_l_min": "Mindestdurchfluss der Anlage (L/min)",
+          "absolute_persistence_s": "Dauer des niedrigen Durchflusses (s)",
+          "relative_drop_pct": "Schwelle des relativen Rückgangs (%)",
+          "relative_persistence_s": "Dauer des relativen Rückgangs (s)",
+          "hysteresis_pct": "Erholungshysterese (%)",
+          "recovery_s": "Dauer der gesunden Erholung (s)",
+          "startup_grace_s": "Anlaufwartezeit (s)",
+          "stale_after_s": "Gültigkeitsdauer der Meldung (s)",
+          "calibration_samples": "Anzahl der Kalibrierungswerte",
+          "calibration_duration_s": "Kalibrierungsdauer (s)",
+          "pump_tolerance_pct": "Drehzahltoleranz (Prozentpunkte)",
+          "running_modes": "Werte aktiver Betriebsarten",
+          "idle_modes": "Werte der Leerlaufbetriebsarten",
+          "excluded_modes": "Werte ausgeschlossener Betriebsarten",
+          "pump_on_values": "Werte für laufende Pumpe",
+          "pump_off_values": "Werte für stehende Pumpe",
+          "fault_values": "Werte aktiver Fehler",
+          "fault_clear_values": "Werte ohne Fehler"
+        },
+        "data_description": {
+          "min_flow_l_min": "Optionaler Anlagenmindestwert. Bei Unkenntnis leer lassen: Absolute Warnungen bleiben deaktiviert. Es wird kein allgemeiner oder herstellerspezifischer Mindestwert vorgegeben.",
+          "absolute_persistence_s": "Erforderliche Dauer gültiger Beobachtungen niedrigen Durchflusses vor einem dringenden Vorfall.",
+          "relative_drop_pct": "Rückgang gegenüber einer festen, bestätigten gesunden Referenz unter vergleichbaren Bedingungen.",
+          "relative_persistence_s": "Erforderliche Dauer eines vergleichbaren relativen Rückgangs vor einem Beobachtungsvorfall.",
+          "hysteresis_pct": "Erholungsmarge, kleiner als die Schwelle des relativen Rückgangs.",
+          "recovery_s": "Gesunde, neue und geeignete Messwerte müssen für diese Dauer vorliegen. Wartung ersetzt sie nicht.",
+          "startup_grace_s": "Wartezeit nach dem Start oder Kontextwechsel vor der Durchflussbeurteilung.",
+          "stale_after_s": "Alter der HA-Meldung, nicht der physischen Messung. Unveränderte Cachewerte können veralten.",
+          "calibration_samples": "Mindestanzahl neuer Beobachtungen nach Bestätigung gesunder Bedingungen.",
+          "calibration_duration_s": "Mindestdauer für eine stabile gesunde Referenz. Kein automatisches Absenken durch erneutes Lernen.",
+          "pump_tolerance_pct": "Maximale Drehzahldifferenz für vergleichbare Bedingungen bei konfigurierter Prozentquelle.",
+          "running_modes": "Mindestens ein Rohwert für einen aktiven Modus. Unbekannte Modi belegen keinen gesunden Betrieb.",
+          "idle_modes": "Rohbetriebsarten, in denen die aktive Durchflussdiagnose nicht sinnvoll ist.",
+          "excluded_modes": "Rohwerte für Abtauung oder nicht vergleichbaren Betrieb. Nie zur Kalibrierung verwenden.",
+          "pump_on_values": "Rohwerte, die den Pumpenbetrieb ausdrücklich bestätigen.",
+          "pump_off_values": "Rohwerte, die den Pumpenstillstand ausdrücklich bestätigen.",
+          "fault_values": "Bei konfigurierter Fehlerquelle erforderlich. Darf nicht mit Fehlerfrei-Werten überlappen.",
+          "fault_clear_values": "Bei konfigurierter Fehlerquelle erforderlich. Nicht zugeordnete Zustände gelten nicht als fehlerfrei."
+        }
+      },
+      "emails": {
+        "title": "Native SMTP-Empfänger auswählen",
+        "description": "Richten Sie zuerst SMTP und eine Empfängerentität pro Adresse in Home Assistant ein. Hier keine Passwörter eingeben. E-Mails einschließlich Tests sind anfangs AUS. Ausschalten verwirft ausstehende Arbeit, kann laufende SMTP-Nachrichten aber nicht zurückrufen.",
+        "data": {
+          "emails_enabled": "E-Mails aktivieren",
+          "recipients": "SMTP-Empfängerentitäten",
+          "reminder_hours": "Erinnerungsintervall (Stunden)",
+          "watch_email": "Beobachtungs-E-Mails senden",
+          "language": "Sprache für E-Mails und Berichte"
+        },
+        "data_description": {
+          "emails_enabled": "Dieselbe dauerhafte Einstellung wie der Schalter. Wiedereinschalten erfordert neue Bestätigung des aktuellen Vorfalls; alte Nachrichten werden nicht nachgeholt.",
+          "recipients": "Bis zu 20 native SMTP-Empfänger mit neutralen Namen auswählen. Register- und Untereintragsidentität werden geprüft; gleichwertige Aliase sind nicht immer erkennbar.",
+          "reminder_hours": "1 bis 720 Stunden. Zurückstellen pausiert nur Erinnerungen, nicht erste Wiederholungen oder dringende Eskalationen. Der Vorfall wird dadurch nicht behoben.",
+          "watch_email": "Auch anhaltende relative Rückgänge melden. Standardmäßig deaktiviert.",
+          "language": "Standardmäßig Englisch für neue Überwachungen. Unabhängig von HA. Gilt für alle E-Mails und lokalen Berichte; Ändern aktiviert keine E-Mails und wiederholt keine Nachrichten."
+        }
+      },
+      "report": {
+        "title": "Berichtsinhalt prüfen",
+        "description": "Begrenzte Bestandsliste ausgewählter Geräte, keine Rohdiagnosen. Namen und Werte auf Datenschutz prüfen. Jeder Messwert behält Verfügbarkeit, Meldungszeit und Alter.",
+        "data": {
+          "report_entities": "Zusätzliche Berichtsentitäten",
+          "report_exclude": "Ausschlüsse aus der Bestandsliste"
+        },
+        "data_description": {
+          "report_entities": "Bis zu 150 Entitäten der ausgewählten Geräte. Keine privaten Kennungen oder vertraulichen Freitexte aufnehmen.",
+          "report_exclude": "Unerwünschte Einträge entfernen. Explizit zugeordnete Diagnosequellen bleiben auch bei Ausschluss sichtbar."
+        }
+      }
+    },
+    "error": {
+      "source_changed": "Quellen geändert. Auswahl prüfen und erneut bestätigen.",
+      "already_configured": "Dieses Gerät besitzt bereits eine Viessmann-Guard-Überwachung.",
+      "invalid_name": "Nicht leeren Namen mit höchstens 60 Zeichen und ohne Zeilenumbrüche verwenden.",
+      "invalid_number": "Endliche Zahl innerhalb der Grenzen eingeben. Die Anzahl der Messwerte muss ganzzahlig sein.",
+      "invalid_device": "Mindestens ein vorhandenes Gerät auswählen.",
+      "required_source": "Eine Entität für diese erforderliche Quelle auswählen.",
+      "invalid_source": "Eine aktivierte Quelle eines ausgewählten Geräts aus einer unterstützten Domäne wählen, nicht aus Viessmann Guard.",
+      "source_unavailable": "Die Quelle hat keinen nutzbaren Zustand. Stellen Sie ihre Meldungen vor der Auswahl wieder her.",
+      "invalid_flow_unit": "Der Durchfluss muss endlich und nicht negativ sein und eine unterstützte explizite Volumeneinheit besitzen.",
+      "invalid_speed_unit": "Die Drehzahl muss eine endliche Zahl zwischen 0 und 100 mit Einheit % sein.",
+      "invalid_measurement_unit": "Endlichen Wert mit unterstützter Temperatur- oder Druckeinheit verwenden; kein negativer Druck.",
+      "required_modes": "Mindestens einen Rohwert einer aktiven Betriebsart eingeben.",
+      "overlapping_values": "Wertgruppen überlappen. Für unvereinbare Zustände unterschiedliche Werte verwenden.",
+      "required_fault_mapping": "Werte für aktiven Fehler und Fehlerfreiheit für die konfigurierte Quelle angeben.",
+      "invalid_hysteresis": "Die Hysterese muss kleiner als die relative Rückgangsschwelle sein.",
+      "invalid_smtp_recipient": "Aktivierte native SMTP-notify-Entität mit gültigem Empfängeruntereintrag auswählen.",
+      "too_many_recipients": "Höchstens 20 Empfängerentitäten auswählen.",
+      "duplicate_recipient": "Zwei Entitäten bezeichnen denselben SMTP-Empfänger. Nur eine behalten.",
+      "required_recipient": "Vor dem Aktivieren von E-Mails mindestens einen gültigen SMTP-Empfänger auswählen.",
+      "invalid_report_entity": "Eine geeignete, nicht private Entität eines ausgewählten Geräts wählen.",
+      "invalid_language": "Wählen Sie Englisch, Französisch, Spanisch oder Deutsch."
+    },
+    "abort": {
+      "already_configured": "Diese Wärmepumpe besitzt bereits eine Viessmann-Guard-Überwachung. Verwenden Sie deren Optionen.",
+      "source_changed": "Die ausgewählte ViCare-Wärmepumpe ist nicht mehr verfügbar. Integration wiederherstellen und erneut versuchen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Viessmann-Guard-Optionen",
+        "description": "Quellen, Regeln, E-Mail-Freigabe oder Berichtsumfang anpassen. Keine Option steuert die Wärmepumpe.",
+        "menu_options": {
+          "minimum": "Optionaler Anlagenmindestdurchfluss",
+          "emails": "E-Mails und Empfänger",
+          "sources": "Gerätequellen",
+          "rules": "Erkennungsregeln",
+          "report": "Berichtsinhalt"
+        }
+      },
+      "minimum": {
+        "title": "Anlagenmindestdurchfluss",
+        "description": "Nur den tatsächlichen Mindestwert des Herstellers oder Installateurs in L/min eingeben. Leer deaktiviert absolute Warnungen. Änderungen verwerfen die gelernte Referenz, löschen aber keine Vorfälle und ändern keine Geräteeinstellung.",
+        "data": {
+          "min_flow_l_min": "Mindestdurchfluss (L/min)"
+        }
+      },
+      "sources": {
+        "title": "Gerätequellen zuordnen",
+        "description": "Entitäten der ausgewählten Geräte wählen. Aktive Diagnose benötigt Pumpenbetriebsnachweise. Keine Viessmann-Zugangsdaten oder zusätzlichen API-Abfragen.",
+        "data": {
+          "name": "Name der Überwachung",
+          "device_ids": "Anlagengeräte",
+          "flow_entity": "Volumendurchfluss",
+          "mode_entity": "Betriebsart",
+          "pump_entity": "Betriebsstatus der Umwälzpumpe",
+          "pump_speed_entity": "Pumpendrehzahl",
+          "fault_entity": "Nativer Fehlerstatus",
+          "supply_temperature_entity": "Vorlauftemperatur",
+          "return_temperature_entity": "Rücklauftemperatur",
+          "pressure_entity": "Hydraulikdruck",
+          "outside_temperature_entity": "Außentemperatur",
+          "compressor_entity": "Verdichterstatus",
+          "valve_entity": "Ventilstatus"
+        },
+        "data_description": {
+          "name": "Kurzer Name. Entitäts-IDs können nach Umbenennung oder bei Kollisionen abweichen. Übersetzungen ändern das Standardsuffix nicht.",
+          "device_ids": "Nur aktivierte Quellen dieser Geräte sind zulässig.",
+          "flow_entity": "Endliche, nicht negative Zahl mit unterstützter expliziter Volumeneinheit.",
+          "mode_entity": "Rohzustände müssen den konfigurierten aktiven, ruhenden und ausgeschlossenen Modi entsprechen.",
+          "pump_entity": "Für die aktive Durchflussdiagnose erforderlich. Ohne diese Quelle ist diese Diagnose nicht verfügbar.",
+          "pump_speed_entity": "Optionaler Prozentwert von 0 bis 100 mit Einheit % für vergleichbare Pumpenbedingungen.",
+          "fault_entity": "Optional. Fehler- und Fehlerfrei-Werte unter Erkennungsregeln festlegen.",
+          "supply_temperature_entity": "Optionale Vorlauftemperatur für den Bericht.",
+          "return_temperature_entity": "Optionale Rücklauftemperatur für den Bericht.",
+          "pressure_entity": "Optionaler Kreislaufdruck für den Bericht.",
+          "outside_temperature_entity": "Optionale Außentemperatur für den Bericht.",
+          "compressor_entity": "Optionale Verdichtertelemetrie, niemals Steuerbefehle.",
+          "valve_entity": "Optionale Ventiltelemetrie, niemals Steuerbefehle."
+        }
+      },
+      "rules": {
+        "title": "Beurteilungs- und Vergleichsregeln festlegen",
+        "description": "Tatsächlichen Anlagenmindestwert verwenden, keinen Beispielwert. Rohzustände zuordnen und Abtauung ausschließen. Unbekannte, veraltete oder nicht vergleichbare Werte belegen keine Erholung.",
+        "data": {
+          "min_flow_l_min": "Mindestdurchfluss der Anlage (L/min)",
+          "absolute_persistence_s": "Dauer des niedrigen Durchflusses (s)",
+          "relative_drop_pct": "Schwelle des relativen Rückgangs (%)",
+          "relative_persistence_s": "Dauer des relativen Rückgangs (s)",
+          "hysteresis_pct": "Erholungshysterese (%)",
+          "recovery_s": "Dauer der gesunden Erholung (s)",
+          "startup_grace_s": "Anlaufwartezeit (s)",
+          "stale_after_s": "Gültigkeitsdauer der Meldung (s)",
+          "calibration_samples": "Anzahl der Kalibrierungswerte",
+          "calibration_duration_s": "Kalibrierungsdauer (s)",
+          "pump_tolerance_pct": "Drehzahltoleranz (Prozentpunkte)",
+          "running_modes": "Werte aktiver Betriebsarten",
+          "idle_modes": "Werte der Leerlaufbetriebsarten",
+          "excluded_modes": "Werte ausgeschlossener Betriebsarten",
+          "pump_on_values": "Werte für laufende Pumpe",
+          "pump_off_values": "Werte für stehende Pumpe",
+          "fault_values": "Werte aktiver Fehler",
+          "fault_clear_values": "Werte ohne Fehler"
+        },
+        "data_description": {
+          "min_flow_l_min": "Grenzwert aus verlässlichen Unterlagen oder von einer Fachkraft beziehen. Kein Herstellermindestwert wird vorgegeben.",
+          "absolute_persistence_s": "Erforderliche Dauer gültigen niedrigen Durchflusses vor einem dringenden Vorfall.",
+          "relative_drop_pct": "Rückgang gegenüber der festen, bestätigten gesunden Referenz.",
+          "relative_persistence_s": "Erforderliche Dauer eines vergleichbaren Rückgangs vor einem Beobachtungsvorfall.",
+          "hysteresis_pct": "Erholungsmarge, kleiner als die relative Rückgangsschwelle.",
+          "recovery_s": "Dauer neuer gesunder Messwerte, nicht der Offlinezeit.",
+          "startup_grace_s": "Wartezeit nach Start oder Kontextwechsel.",
+          "stale_after_s": "Altersgrenze der HA-Meldung, nicht der Reglermessung. Cachewerte können veralten.",
+          "calibration_samples": "Mindestanzahl neuer Beobachtungen nach Bestätigung gesunder Bedingungen.",
+          "calibration_duration_s": "Mindestdauer gesunder Beobachtung. Die Referenz wird nicht automatisch abgesenkt.",
+          "pump_tolerance_pct": "Zulässige Drehzahldifferenz in Prozentpunkten für vergleichbare Bedingungen.",
+          "running_modes": "Mindestens ein ausdrücklicher Rohwert für aktiven Betrieb.",
+          "idle_modes": "Rohbetriebsarten, in denen die aktive Diagnose pausiert.",
+          "excluded_modes": "Abtauung und andere nicht vergleichbare Modi aufnehmen. Sie dienen nicht zur Kalibrierung.",
+          "pump_on_values": "Rohwerte, die laufende Pumpe bestätigen.",
+          "pump_off_values": "Rohwerte, die stehende Pumpe bestätigen.",
+          "fault_values": "Ausdrückliche aktive Fehlerwerte, bei ausgewählter Fehlerquelle erforderlich.",
+          "fault_clear_values": "Ausdrückliche Fehlerfrei-Werte, getrennt von aktiven Fehlerwerten."
+        }
+      },
+      "emails": {
+        "title": "E-Mails und native SMTP-Empfänger",
+        "description": "Empfängerentitäten aus der SMTP-Oberfläche von Home Assistant verwenden. Hier keine Passwörter. AUS blockiert Tests und ausstehende Wiederholungen, ruft aber laufende SMTP-Nachrichten nicht zurück.",
+        "data": {
+          "emails_enabled": "E-Mails aktivieren",
+          "recipients": "SMTP-Empfängerentitäten",
+          "reminder_hours": "Erinnerungsintervall (Stunden)",
+          "watch_email": "Beobachtungs-E-Mails senden",
+          "language": "Sprache für E-Mails und Berichte"
+        },
+        "data_description": {
+          "emails_enabled": "Dieselbe Einstellung wie der dauerhafte Schalter. Wiedereinschalten sendet erst nach neuer Bestätigung des aktuellen Vorfalls.",
+          "recipients": "Bis zu 20 geprüfte native SMTP-Empfänger. Neutrale Namen ohne Adressen verwenden. Großschreibung der lokalen Adressteile bleibt erhalten, die Domäne wird normalisiert.",
+          "reminder_hours": "Intervall von 1 bis 720 Stunden. Zurückstellen blockiert weder erste Wiederholungen noch dringende Eskalationen.",
+          "watch_email": "E-Mails bei anhaltenden relativen Durchflussrückgängen aktivieren.",
+          "language": "Standardmäßig Englisch für neue Überwachungen. Unabhängig von HA. Gilt für alle E-Mails und lokalen Berichte; Ändern aktiviert keine E-Mails und wiederholt keine Nachrichten."
+        }
+      },
+      "report": {
+        "title": "Berichtsinhalt prüfen",
+        "description": "Private, gerätebezogene Berichte. Keine Rohdiagnosen oder beliebigen Attribute. Neutrale Namen und Alter jedes Messwerts prüfen.",
+        "data": {
+          "report_entities": "Zusätzliche Berichtsentitäten",
+          "report_exclude": "Ausschlüsse aus der Bestandsliste"
+        },
+        "data_description": {
+          "report_entities": "Bis zu 150 geeignete Einträge. Keine privaten Kennungen oder sensiblen Texte aufnehmen.",
+          "report_exclude": "Unerwünschte Einträge ausschließen. Explizite Diagnosequellen bleiben sichtbar."
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Dieses Gerät besitzt bereits eine Viessmann-Guard-Überwachung.",
+      "invalid_name": "Nicht leeren Namen mit höchstens 60 Zeichen und ohne Zeilenumbrüche verwenden.",
+      "invalid_number": "Endliche Zahl innerhalb der Grenzen eingeben. Die Anzahl der Messwerte muss ganzzahlig sein.",
+      "invalid_device": "Mindestens ein vorhandenes Gerät auswählen.",
+      "required_source": "Eine Entität für diese erforderliche Quelle auswählen.",
+      "invalid_source": "Eine aktivierte Quelle eines ausgewählten Geräts aus einer unterstützten Domäne wählen, nicht aus Viessmann Guard.",
+      "source_unavailable": "Die Quelle hat keinen nutzbaren Zustand. Stellen Sie ihre Meldungen vor der Auswahl wieder her.",
+      "invalid_flow_unit": "Der Durchfluss muss endlich und nicht negativ sein und eine unterstützte explizite Volumeneinheit besitzen.",
+      "invalid_speed_unit": "Die Drehzahl muss eine endliche Zahl zwischen 0 und 100 mit Einheit % sein.",
+      "invalid_measurement_unit": "Endlichen Wert mit unterstützter Temperatur- oder Druckeinheit verwenden; kein negativer Druck.",
+      "required_modes": "Mindestens einen Rohwert einer aktiven Betriebsart eingeben.",
+      "overlapping_values": "Wertgruppen überlappen. Für unvereinbare Zustände unterschiedliche Werte verwenden.",
+      "required_fault_mapping": "Werte für aktiven Fehler und Fehlerfreiheit für die konfigurierte Quelle angeben.",
+      "invalid_hysteresis": "Die Hysterese muss kleiner als die relative Rückgangsschwelle sein.",
+      "invalid_smtp_recipient": "Aktivierte native SMTP-notify-Entität mit gültigem Empfängeruntereintrag auswählen.",
+      "too_many_recipients": "Höchstens 20 Empfängerentitäten auswählen.",
+      "duplicate_recipient": "Zwei Entitäten bezeichnen denselben SMTP-Empfänger. Nur eine behalten.",
+      "required_recipient": "Vor dem Aktivieren von E-Mails mindestens einen gültigen SMTP-Empfänger auswählen.",
+      "invalid_report_entity": "Eine geeignete, nicht private Entität eines ausgewählten Geräts wählen.",
+      "invalid_language": "Wählen Sie Englisch, Französisch, Spanisch oder Deutsch."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Status",
+        "state": {
+          "normal": "Normal oder Leerlauf; Grund prüfen",
+          "learning": "Start oder Kalibrierung",
+          "watch": "Beobachtung",
+          "urgent": "Dringend",
+          "diagnostic_unavailable": "Diagnose nicht verfügbar"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Grundcode",
+            "state": {
+              "awaiting_observations": "Warten auf Meldungen der Quellen.",
+              "minimum_not_configured": "Nur Beobachtung / relative Überwachung: Mindestdurchfluss nicht festgelegt. Absolute Warnungen sind deaktiviert.",
+              "clock_moved_backwards": "Die Uhr wurde zurückgestellt; Beobachtungszeiten werden neu gestartet.",
+              "flow_unavailable": "Durchfluss: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+              "flow_stale": "Durchfluss: Meldung veraltet.",
+              "mode_unavailable": "Betriebsart: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+              "mode_stale": "Betriebsart: Meldung veraltet.",
+              "pump_unavailable": "Umwälzpumpenstatus: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+              "pump_stale": "Umwälzpumpenstatus: Meldung veraltet.",
+              "pump_speed_unavailable": "Pumpendrehzahl: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+              "pump_speed_stale": "Pumpendrehzahl: Meldung veraltet.",
+              "fault_unavailable": "Fehlersignal: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+              "fault_stale": "Fehlersignal: Meldung veraltet.",
+              "native_fault": "Ein ausdrücklich zugeordneter nativer Durchflussfehler ist aktiv; die Ursache muss untersucht werden.",
+              "fault_unmapped": "Fehlerstatus nicht zugeordnet; ein Durchflussfehler wird nicht unterstellt.",
+              "pump_not_configured": "Wählen Sie eine Statusquelle der Umwälzpumpe, um deren Betrieb zu bestätigen.",
+              "mode_idle": "Wärmepumpe im Leerlauf; keine Diagnose eines niedrigen Durchflusses.",
+              "mode_excluded": "Ausgeschlossene Betriebsart oder Abtauung; heuristische Überwachung pausiert.",
+              "mode_unmapped": "Betriebsart nicht zugeordnet; Diagnose nicht verfügbar.",
+              "pump_off": "Umwälzpumpe steht; keine Diagnose eines niedrigen Durchflusses.",
+              "pump_unmapped": "Status der Umwälzpumpe nicht zugeordnet; Diagnose nicht verfügbar.",
+              "pump_speed_invalid": "Die Pumpendrehzahl muss ein endlicher Prozentwert zwischen 0 und 100 sein.",
+              "flow_out_of_order": "Der Durchflusszeitstempel liegt vor dem vorherigen; Diagnose pausiert.",
+              "flow_changed_without_report": "Durchfluss ohne neuen Meldungszeitstempel geändert.",
+              "flow_invalid": "Durchfluss ungültig oder Einheit nicht unterstützt.",
+              "awaiting_post_restart_reports": "Warten auf neue Meldungen nach dem Neustart.",
+              "startup_grace": "Warten auf stabile Zirkulation nach dem Start oder einem Kontextwechsel.",
+              "absolute_low_flow": "Durchfluss dauerhaft unter dem Mindestwert der Anlage.",
+              "relative_flow_decline": "Dauerhafter Rückgang gegenüber einer vergleichbaren gesunden Referenz.",
+              "baseline_context_mismatch": "Referenz für diese Betriebsart oder Pumpendrehzahl nicht vergleichbar.",
+              "recovery_pending": "Gesunde Messwerte beobachtet; Warten auf stabile Erholung.",
+              "incident_pending_revalidation": "Gespeicherter Vorfall wartet auf neue Bestätigung; Ausfallzeiten werden nicht mitgezählt.",
+              "recovery_hysteresis": "Vorfall bleibt bestehen, bis die Erholungsmarge überschritten wird.",
+              "calibration_sampling": "Nach Ihrer Bestätigung werden repräsentative gesunde Messwerte gesammelt.",
+              "calibration_complete": "Gesunde Referenz erstellt und festgeschrieben.",
+              "calibration_cancelled_by_cleaning": "Reinigung erfasst; laufende Kalibrierung beendet, vorhandene Referenz beibehalten.",
+              "absolute_low_pending": "Niedriger Durchfluss beobachtet; festgelegte Dauer noch nicht erreicht.",
+              "relative_decline_pending": "Rückgang beobachtet; festgelegte Dauer noch nicht erreicht.",
+              "baseline_unconfirmed": "Keine bestätigte gesunde Referenz; relative Überwachung nicht verfügbar.",
+              "healthy": "Vergleichbare Messwerte erfüllen die festgelegten Erholungskriterien."
+            }
+          },
+          "reason_text": {
+            "name": "Begründung"
+          },
+          "incident_id": {
+            "name": "Vorfall-ID"
+          },
+          "incident_severity": {
+            "name": "Schweregrad des Vorfalls",
+            "state": {
+              "watch": "Beobachtung",
+              "urgent": "Dringend"
+            }
+          },
+          "incident_confirmed": {
+            "name": "Vorfall mit neuen Daten bestätigt"
+          },
+          "acknowledged": {
+            "name": "Bestätigt"
+          },
+          "snoozed_until": {
+            "name": "Erinnerungen zurückgestellt bis"
+          },
+          "anomaly_duration_seconds": {
+            "name": "Dauer der Auffälligkeit (Sekunden)"
+          },
+          "engine_phase": {
+            "name": "Auswertungsphase",
+            "state": {
+              "normal": "Normal oder Leerlauf; Grund prüfen",
+              "learning": "Start oder Kalibrierung",
+              "watch": "Beobachtung",
+              "urgent": "Dringend",
+              "diagnostic_unavailable": "Diagnose nicht verfügbar"
+            }
+          },
+          "absolute_alerts_configured": {
+            "name": "Absolute Warnungen konfiguriert"
+          },
+          "limitations": {
+            "name": "Einschränkungscodes"
+          },
+          "limitations_text": {
+            "name": "Einschränkungen"
+          },
+          "source_statuses": {
+            "name": "Status erkannter Quellen"
+          }
+        }
+      },
+      "reason": {
+        "name": "Grund",
+        "state": {
+          "awaiting_observations": "Warten auf Meldungen der Quellen.",
+          "minimum_not_configured": "Nur Beobachtung / relative Überwachung: Mindestdurchfluss nicht festgelegt. Absolute Warnungen sind deaktiviert.",
+          "clock_moved_backwards": "Die Uhr wurde zurückgestellt; Beobachtungszeiten werden neu gestartet.",
+          "flow_unavailable": "Durchfluss: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+          "flow_stale": "Durchfluss: Meldung veraltet.",
+          "mode_unavailable": "Betriebsart: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+          "mode_stale": "Betriebsart: Meldung veraltet.",
+          "pump_unavailable": "Umwälzpumpenstatus: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+          "pump_stale": "Umwälzpumpenstatus: Meldung veraltet.",
+          "pump_speed_unavailable": "Pumpendrehzahl: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+          "pump_speed_stale": "Pumpendrehzahl: Meldung veraltet.",
+          "fault_unavailable": "Fehlersignal: Meldung fehlt, ist ungültig oder nicht verfügbar.",
+          "fault_stale": "Fehlersignal: Meldung veraltet.",
+          "native_fault": "Ein ausdrücklich zugeordneter nativer Durchflussfehler ist aktiv; die Ursache muss untersucht werden.",
+          "fault_unmapped": "Fehlerstatus nicht zugeordnet; ein Durchflussfehler wird nicht unterstellt.",
+          "pump_not_configured": "Wählen Sie eine Statusquelle der Umwälzpumpe, um deren Betrieb zu bestätigen.",
+          "mode_idle": "Wärmepumpe im Leerlauf; keine Diagnose eines niedrigen Durchflusses.",
+          "mode_excluded": "Ausgeschlossene Betriebsart oder Abtauung; heuristische Überwachung pausiert.",
+          "mode_unmapped": "Betriebsart nicht zugeordnet; Diagnose nicht verfügbar.",
+          "pump_off": "Umwälzpumpe steht; keine Diagnose eines niedrigen Durchflusses.",
+          "pump_unmapped": "Status der Umwälzpumpe nicht zugeordnet; Diagnose nicht verfügbar.",
+          "pump_speed_invalid": "Die Pumpendrehzahl muss ein endlicher Prozentwert zwischen 0 und 100 sein.",
+          "flow_out_of_order": "Der Durchflusszeitstempel liegt vor dem vorherigen; Diagnose pausiert.",
+          "flow_changed_without_report": "Durchfluss ohne neuen Meldungszeitstempel geändert.",
+          "flow_invalid": "Durchfluss ungültig oder Einheit nicht unterstützt.",
+          "awaiting_post_restart_reports": "Warten auf neue Meldungen nach dem Neustart.",
+          "startup_grace": "Warten auf stabile Zirkulation nach dem Start oder einem Kontextwechsel.",
+          "absolute_low_flow": "Durchfluss dauerhaft unter dem Mindestwert der Anlage.",
+          "relative_flow_decline": "Dauerhafter Rückgang gegenüber einer vergleichbaren gesunden Referenz.",
+          "baseline_context_mismatch": "Referenz für diese Betriebsart oder Pumpendrehzahl nicht vergleichbar.",
+          "recovery_pending": "Gesunde Messwerte beobachtet; Warten auf stabile Erholung.",
+          "incident_pending_revalidation": "Gespeicherter Vorfall wartet auf neue Bestätigung; Ausfallzeiten werden nicht mitgezählt.",
+          "recovery_hysteresis": "Vorfall bleibt bestehen, bis die Erholungsmarge überschritten wird.",
+          "calibration_sampling": "Nach Ihrer Bestätigung werden repräsentative gesunde Messwerte gesammelt.",
+          "calibration_complete": "Gesunde Referenz erstellt und festgeschrieben.",
+          "calibration_cancelled_by_cleaning": "Reinigung erfasst; laufende Kalibrierung beendet, vorhandene Referenz beibehalten.",
+          "absolute_low_pending": "Niedriger Durchfluss beobachtet; festgelegte Dauer noch nicht erreicht.",
+          "relative_decline_pending": "Rückgang beobachtet; festgelegte Dauer noch nicht erreicht.",
+          "baseline_unconfirmed": "Keine bestätigte gesunde Referenz; relative Überwachung nicht verfügbar.",
+          "healthy": "Vergleichbare Messwerte erfüllen die festgelegten Erholungskriterien."
+        }
+      },
+      "current_flow": {
+        "name": "Aktueller Durchfluss"
+      },
+      "reference_flow": {
+        "name": "Referenzdurchfluss"
+      },
+      "minimum_flow": {
+        "name": "Mindestdurchfluss"
+      },
+      "decline": {
+        "name": "Rückgang"
+      },
+      "telemetry_updated": {
+        "name": "Telemetrie aktualisiert"
+      },
+      "last_cleaned": {
+        "name": "Letzte Reinigung"
+      },
+      "email_status": {
+        "name": "E-Mail-Status",
+        "state": {
+          "disabled": "E-Mails deaktiviert",
+          "ready": "Bereit",
+          "pending": "In Warteschlange",
+          "retry": "Warten auf Wiederholung",
+          "sending": "Wird gesendet",
+          "accepted": "SMTP-Aktion abgeschlossen, Zustellung unbestätigt",
+          "failed": "Fehlgeschlagen",
+          "unknown": "Ergebnis unbekannt; keine automatische Wiederholung",
+          "storage_error": "Speicherfehler; Versand kann nicht sicher aufgezeichnet werden"
+        },
+        "state_attributes": {
+          "recipients": {
+            "name": "Ergebnisse je Empfänger"
+          }
+        }
+      },
+      "recipient_status": {
+        "name": "E-Mail: {recipient}",
+        "state": {
+          "disabled": "E-Mails deaktiviert",
+          "ready": "Bereit",
+          "pending": "In Warteschlange",
+          "retry": "Warten auf Wiederholung",
+          "sending": "Wird gesendet",
+          "accepted": "SMTP-Aktion abgeschlossen, Zustellung unbestätigt",
+          "failed": "Fehlgeschlagen",
+          "unknown": "Ergebnis unbekannt; keine automatische Wiederholung",
+          "storage_error": "Speicherfehler"
+        },
+        "state_attributes": {
+          "name": {
+            "name": "Neutrale Empfängerbezeichnung"
+          },
+          "status": {
+            "name": "Versandstatus",
+            "state": {
+              "disabled": "E-Mails deaktiviert",
+              "ready": "Bereit",
+              "pending": "In Warteschlange",
+              "retry": "Warten auf Wiederholung",
+              "sending": "Wird gesendet",
+              "accepted": "SMTP-Aktion abgeschlossen, Zustellung unbestätigt",
+              "failed": "Fehlgeschlagen",
+              "unknown": "Ergebnis unbekannt; keine automatische Wiederholung",
+              "storage_error": "Speicherfehler; Versand kann nicht sicher aufgezeichnet werden"
+            }
+          },
+          "attempts": {
+            "name": "Versuche"
+          },
+          "updated_at": {
+            "name": "Status aktualisiert"
+          },
+          "next_attempt_at": {
+            "name": "Nächster Versuch"
+          },
+          "accepted_at": {
+            "name": "SMTP-Abschlusszeit"
+          },
+          "error": {
+            "name": "Bereinigter Fehlercode"
+          },
+          "kind": {
+            "name": "Benachrichtigungsart",
+            "state": {
+              "watch": "Beobachtung eines Durchflussrückgangs",
+              "urgent": "Dringende Durchflusswarnung",
+              "reminder": "Erinnerung an die Durchflusswarnung",
+              "recovery": "Erholung des Durchflusses",
+              "test": "Test-E-Mail"
+            }
+          },
+          "key": {
+            "name": "Benachrichtigungsschlüssel"
+          }
+        }
+      }
+    },
+    "switch": {
+      "emails_enabled": {
+        "name": "E-Mails aktivieren"
+      }
+    },
+    "button": {
+      "acknowledge": {
+        "name": "Bestätigen"
+      },
+      "snooze": {
+        "name": "Erinnerungen 24 Stunden zurückstellen"
+      },
+      "record_cleaning": {
+        "name": "Reinigung erfassen"
+      },
+      "confirm_calibration": {
+        "name": "Gesunden Betrieb bestätigen: kalibrieren"
+      },
+      "test_email": {
+        "name": "Test-E-Mail senden"
+      }
+    }
+  },
+  "exceptions": {
+    "entry_unavailable": {
+      "message": "Diese Überwachung ist nicht geladen. Laden Sie die Integration vor dieser Aktion."
+    },
+    "emails_disabled": {
+      "message": "E-Mails einschließlich Tests sind deaktiviert. Vor einem Test E-Mails bewusst aktivieren."
+    },
+    "required_recipient": {
+      "message": "Vor dem Aktivieren oder Testen von E-Mails mindestens einen gültigen nativen SMTP-Empfänger auswählen."
+    },
+    "invalid_smtp_recipient": {
+      "message": "Ein ausgewählter Empfänger ist keine aktivierte native SMTP-Entität mit gültigem Untereintrag."
+    },
+    "too_many_recipients": {
+      "message": "Höchstens 20 SMTP-Empfängerentitäten auswählen."
+    },
+    "duplicate_recipient": {
+      "message": "Zwei Entitäten bezeichnen denselben SMTP-Empfänger. Nur eine behalten."
+    },
+    "smtp_error": {
+      "message": "SMTP-Aktion für mindestens einen Empfänger fehlgeschlagen. Einzelergebnisse prüfen; erfolgreiche Empfänger benötigen nicht automatisch einen erneuten Versand."
+    },
+    "confirmation_required": {
+      "message": "Kalibrierung erfordert confirmed: true nach unabhängiger Prüfung gesunder, vergleichbarer Bedingungen."
+    },
+    "no_incident_ack": {
+      "message": "Kein aktiver Vorfall zum Bestätigen"
+    },
+    "no_incident_snooze": {
+      "message": "Kein aktiver Vorfall zum Zurückstellen"
+    },
+    "calibration_incident": {
+      "message": "Kalibrierung bei aktivem Vorfall nicht zulässig"
+    },
+    "calibration_progress": {
+      "message": "Kalibrierung läuft bereits"
+    },
+    "calibration_unhealthy": {
+      "message": "Kalibrierung erfordert neue, gesunde Betriebsmesswerte nach dem Start"
+    },
+    "action_failed": {
+      "message": "Aktion konnte nicht abgeschlossen werden. Diagnosegrund und Home-Assistant-Protokolle prüfen."
+    }
+  },
+  "services": {
+    "get_report": {
+      "name": "Beobachtungsbericht lesen",
+      "description": "Gibt einen lokalen Bericht der gewählten Anlage zurück, ohne E-Mail, Warteschlangenänderung oder Steuerbefehl. Funktioniert bei ausgeschalteten E-Mails.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Viessmann-Guard-Eintrag, dessen Geräte enthalten sind."
+        }
+      }
+    },
+    "acknowledge": {
+      "name": "Vorfall bestätigen",
+      "description": "Vorfall als gesehen markieren. Behebt ihn nicht und steuert die Wärmepumpe nicht.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Der Viessmann-Guard-Konfigurationseintrag."
+        }
+      }
+    },
+    "snooze": {
+      "name": "Erinnerungen zurückstellen",
+      "description": "Pausiert nur Erinnerungen, nicht erste Wiederholungen oder dringende Eskalationen. Ablauf ist keine Erholung und ändert die Referenz nicht.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Der Viessmann-Guard-Konfigurationseintrag."
+        },
+        "hours": {
+          "name": "Stunden",
+          "description": "1 bis 168 Stunden. Die Dashboard-Schaltfläche verwendet 24 Stunden."
+        }
+      }
+    },
+    "record_cleaning": {
+      "name": "Abgeschlossene Reinigung erfassen",
+      "description": "Wartungsdatum erfassen und unvollständige Kalibrierung beenden. Belegt keine Erholung, beendet keinen Vorfall und ersetzt keine angenommene Referenz.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Der Viessmann-Guard-Konfigurationseintrag."
+        }
+      }
+    },
+    "confirm_calibration": {
+      "name": "Gesunde Kalibrierung bestätigen",
+      "description": "Feste Referenz aus nachfolgenden gesunden, neuen, vergleichbaren Beobachtungen freigeben. Nicht allein wegen einer erfassten Reinigung bestätigen.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Der Viessmann-Guard-Konfigurationseintrag."
+        },
+        "confirmed": {
+          "name": "Gesunder Betrieb bestätigt",
+          "description": "Muss wahr sein. Gesunden Betrieb unter vergleichbaren Bedingungen unabhängig bestätigen."
+        }
+      }
+    },
+    "test_email": {
+      "name": "Test-E-Mail senden",
+      "description": "Test für konfigurierte Empfänger anfordern. E-Mails müssen aktiviert sein. SMTP-Abschluss garantiert keine Zustellung.",
+      "fields": {
+        "entry_id": {
+          "name": "Überwachung",
+          "description": "Der Viessmann-Guard-Konfigurationseintrag."
+        }
+      }
+    }
+  },
+  "selector": {
+    "email_language": {
+      "options": {
+        "en": "English",
+        "fr": "Français",
+        "es": "Español",
+        "de": "Deutsch"
+      }
+    }
+  }
+}

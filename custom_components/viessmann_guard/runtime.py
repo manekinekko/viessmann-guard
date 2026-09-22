@@ -24,11 +24,19 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, EMAIL_DEFAULTS, LIST_SETTINGS, NUMERIC_RULES, SOURCE_ROLES, public_state
+from .const import (
+    DOMAIN,
+    EMAIL_DEFAULTS,
+    LIST_SETTINGS,
+    NUMERIC_RULES,
+    SOURCE_ROLES,
+    normalize_language,
+    public_state,
+)
 from .delivery import Delivery, DeliveryError
 from .discovery import resolve_sources
 from .engine import Engine, Settings, Snapshot, convert_flow
-from .report import render_report
+from .report import render_report, report_copy
 from .storage import GuardStore, validate_storage
 from .telemetry import (
     iso,
@@ -40,10 +48,19 @@ from .telemetry import (
 from .validation import smtp_identity, validate_recipients
 
 _LOGGER = logging.getLogger(__name__)
+ACTION_ERRORS = {
+    "There is no active incident to acknowledge": "no_incident_ack",
+    "There is no active incident to snooze": "no_incident_snooze",
+    "Calibration is not allowed while an incident is active": "calibration_incident",
+    "Calibration is already in progress": "calibration_progress",
+    "Calibration requires fresh, healthy, running telemetry after startup": "calibration_unhealthy",
+    "invalid_smtp_recipient": "invalid_smtp_recipient",
+    "too_many_recipients": "too_many_recipients",
+}
 
 
 def configuration(entry: ConfigEntry) -> dict[str, Any]:
-    return {
+    config = {
         "min_flow_l_min": None,
         "report_entities": [],
         "report_exclude": [],
@@ -52,6 +69,8 @@ def configuration(entry: ConfigEntry) -> dict[str, Any]:
         **entry.data,
         **entry.options,
     }
+    config["language"] = normalize_language(config["language"])
+    return config
 
 
 def settings(config: dict[str, Any]) -> Settings:
@@ -367,7 +386,7 @@ class GuardRuntime:
             state = self.hass.states.get(target)
             name = state.name if state else ""
             if not re.fullmatch(r"[A-Za-z0-9À-ÿ ._-]{1,60}", name):
-                name = f"SMTP recipient {index}"
+                name = f"{report_copy(self.hass.config.language)['recipient']} {index}"
             result[target] = {
                 **(incident or test or {"status": "ready"}),
                 "name": name,
@@ -385,18 +404,12 @@ class GuardRuntime:
 
             persistent_notification.async_create(
                 self.hass,
-                f"{result.state}: {describe_reason(result.reason, self.config['language'])}\n\n"
-                + (
-                    "Filtre encrassé possible, sans certitude. Faire contrôler rapidement le circuit "
-                    "et les filtres par un professionnel ; nettoyage selon la procédure du fabricant "
-                    "si l'encrassement est confirmé. Vérifier aussi le circulateur, les vannes, l'air "
-                    "et les capteurs. Ceci n'est pas un dispositif de sécurité."
-                    if self.config["language"] == "fr"
-                    else "A dirty filter is one possible cause, not a diagnosis. Arrange prompt professional "
-                    "inspection of the circuit and filters, with cleaning per the manufacturer's procedure "
-                    "if fouling is confirmed. Also check the circulator, valves, air and sensors. "
-                    "This is not a safety device."
-                ),
+                f"{describe_reason(result.reason, self.hass.config.language)}\n\n"
+                + report_copy(self.hass.config.language)["possible_text"]
+                + "\n\n"
+                + report_copy(self.hass.config.language)["advice_text"]
+                + "\n\n"
+                + report_copy(self.hass.config.language)["limitations_text"],
                 title=self.config["name"],
                 notification_id=f"{DOMAIN}_{self.entry.entry_id}_incident",
             )
@@ -438,6 +451,14 @@ class GuardRuntime:
 
     async def apply_options(self) -> None:
         updated = resolve_sources(self.hass, configuration(self.entry))
+        if all(
+            updated.get(key) == self.config.get(key)
+            for key in set(updated) | set(self.config)
+            if key != "language"
+        ):
+            self.config["language"] = updated["language"]
+            self.changed()
+            return
         old = {k: v for k, v in self.config.items() if k != "emails_enabled"}
         new = {k: v for k, v in updated.items() if k != "emails_enabled"}
         if old != new:
@@ -510,7 +531,10 @@ class GuardRuntime:
             else:
                 raise ValueError("Unknown action")
         except ValueError as err:
-            raise ServiceValidationError(str(err)) from err
+            key = ACTION_ERRORS.get(str(err), "action_failed")
+            if key == "action_failed":
+                _LOGGER.warning("Guard action %s rejected: %s", action, err)
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key=key) from err
         await self.save()
         self.changed()
 
@@ -561,7 +585,7 @@ class GuardRuntime:
             )
             persistent_notification.async_create(
                 self.hass,
-                "SMTP report could not be accepted. Check the recipient status and the native SMTP integration.",
+                report_copy(self.hass.config.language)["smtp_failure"],
                 title=self.config["name"],
                 notification_id=f"{DOMAIN}_{self.entry.entry_id}_smtp",
             )
@@ -591,7 +615,7 @@ class GuardRuntime:
         telemetry.append(
             {
                 "entity_id": None,
-                "name": "Delta T (supply - return)",
+                "name": report_copy(self.config["language"])["delta_t"],
                 "unit": "°C",
                 "value": supply - returned if supply is not None and returned is not None else None,
                 "status": "ok" if supply is not None and returned is not None else "missing",
@@ -600,14 +624,13 @@ class GuardRuntime:
             }
         )
         result = self.engine.result
-        from .reasons import describe_reason
 
         return render_report(
             {
                 "generated_at": iso(now),
                 "name": self.config["name"],
                 "state": self.diagnostic_state,
-                "reason": describe_reason(result.reason, self.config["language"]),
+                "reason_code": result.reason,
                 "flow": self.observed_flow(),
                 "reference": result.reference,
                 "minimum": self.config["min_flow_l_min"],
@@ -617,17 +640,12 @@ class GuardRuntime:
                 "thresholds": asdict(settings(self.config)),
                 "telemetry": telemetry,
                 "trends": list(self.trends),
-                "rules": [
-                    "HA last_reported is a Home Assistant report time, not a verified controller acquisition time.",
-                    "Historical trend rows are not new observations. Unavailable values do not establish recovery.",
-                    "Inventory truncated at 150 entities."
-                    if truncated
-                    else "Device-scoped inventory; only selected state fields.",
-                    *[
-                        describe_reason(reason, self.config["language"])
-                        for reason in self.limitations
-                    ],
+                "rule_codes": [
+                    "ha_report_time",
+                    "history_not_evidence",
+                    "inventory_truncated" if truncated else "inventory_scoped",
                 ],
+                "limitation_codes": self.limitations,
                 "incident": {
                     "id": result.incident_id,
                     "severity": result.incident_severity,

@@ -52,6 +52,17 @@ EMAIL_DEFAULTS = {
     "watch_email": False,
     "language": "en",
 }
+
+LANGUAGES = ("en", "fr", "es", "de")
+
+
+def normalize_language(value: object) -> str:
+    if not isinstance(value, str):
+        return "en"
+    language = value.lower().replace("_", "-").split("-")[0]
+    return language if language in LANGUAGES else "en"
+
+
 SAFE_DEVICE_CLASSES = frozenset(
     (
         "temperature",

@@ -1,4 +1,4 @@
-"""Render English and French email reports from an explicitly sanitized snapshot."""
+"""Render localized email reports from an explicitly sanitized snapshot."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ import unicodedata
 from html import escape
 from math import isfinite
 from typing import Any
+
+from .const import LANGUAGES, LIST_SETTINGS, normalize_language
+from .reasons import describe_reason
 
 _COPY = {
     "en": {
@@ -148,7 +151,307 @@ _COPY = {
             "ne garantit pas sa réception."
         ),
     },
+    "es": {
+        "report": "Informe de caudal hidráulico",
+        "test": "Email de prueba",
+        "urgent": "Alerta urgente de caudal",
+        "reminder": "Recordatorio de alerta de caudal",
+        "recovery": "Recuperación del caudal",
+        "alert": "Alerta de caudal",
+        "name": "Viessmann Guard",
+        "summary": "Observaciones actuales",
+        "generated_at": "Generado el",
+        "state": "Estado del seguimiento",
+        "reason": "Motivo de la evaluación",
+        "flow": "Caudal actual de la fuente",
+        "reference": "Caudal de referencia",
+        "minimum": "Umbral mínimo de caudal",
+        "decline_pct": "Descenso respecto a la referencia",
+        "duration_seconds": "Duración de la condición",
+        "last_cleaned": "Última limpieza registrada",
+        "thresholds": "Umbrales configurados",
+        "telemetry": "Telemetría completa de las fuentes",
+        "name_label": "Nombre",
+        "entity_id": "Entidad fuente",
+        "value": "Valor",
+        "unit": "Unidad",
+        "status": "Estado de los datos",
+        "observed_at": "Observado el",
+        "freshness_seconds": "Antigüedad de los datos",
+        "missing": "Ausente / no proporcionado",
+        "stale": "Obsoleto",
+        "available": "Disponible",
+        "unavailable": "No disponible",
+        "incident": "Estado del incidente",
+        "id": "ID del incidente",
+        "severity": "Gravedad registrada",
+        "acknowledged": "Reconocido",
+        "snoozed_until": "Pospuesto hasta",
+        "yes": "Sí",
+        "no": "No",
+        "trends": "Tendencia reciente del caudal",
+        "rules": "Reglas utilizadas para esta evaluación",
+        "interpretation": "Interpretación y próximos pasos",
+        "possible": "Explicación posible",
+        "alternatives": "Causas alternativas",
+        "advice": "Orientación profesional",
+        "limitations": "Limitaciones",
+        "seconds": "segundos",
+        "possible_text": "Un caudal reducido puede ser compatible con un filtro sucio u obstruido, pero estas observaciones no permiten confirmar una obstrucción.",
+        "alternatives_text": "Otras explicaciones incluyen la velocidad o el modo de la bomba, una avería de la bomba, válvulas cerradas o restringidas, aire atrapado y datos incorrectos u obsoletos de los sensores.",
+        "advice_text": "Ante una anomalía activa, solicite pronto la inspección de los filtros y del circuito hidráulico por un profesional cualificado. Si se confirma la suciedad, encargue la limpieza de los filtros según los procedimientos de mantenimiento y seguridad del fabricante. Revise también la bomba, las válvulas, el aire y los sensores. No abra equipos presurizados ni anule las protecciones de seguridad.",
+        "limitations_text": "Esta evaluación de solo lectura se basa en la telemetría proporcionada; no es un diagnóstico ni una prueba de obstrucción del filtro. No es un dispositivo de seguridad. Las mediciones ausentes u obsoletas reducen la confianza. Los umbrales son ajustes de seguimiento, no límites de seguridad del fabricante. No se modifican ajustes ni controles del equipo. La aceptación de un email por SMTP no demuestra que haya llegado al destinatario.",
+    },
+    "de": {
+        "report": "Hydraulischer Durchflussbericht",
+        "test": "Test-E-Mail",
+        "urgent": "Dringende Durchflusswarnung",
+        "reminder": "Erinnerung an die Durchflusswarnung",
+        "recovery": "Erholung des Durchflusses",
+        "alert": "Durchflusswarnung",
+        "name": "Viessmann Guard",
+        "summary": "Aktuelle Beobachtungen",
+        "generated_at": "Erstellt am",
+        "state": "Überwachungsstatus",
+        "reason": "Beurteilungsgrund",
+        "flow": "Aktueller Durchfluss der Quelle",
+        "reference": "Referenzdurchfluss",
+        "minimum": "Mindestdurchflussschwelle",
+        "decline_pct": "Rückgang gegenüber der Referenz",
+        "duration_seconds": "Dauer des Zustands",
+        "last_cleaned": "Zuletzt erfasste Reinigung",
+        "thresholds": "Konfigurierte Schwellenwerte",
+        "telemetry": "Vollständige Quellentelemetrie",
+        "name_label": "Name",
+        "entity_id": "Quellentität",
+        "value": "Wert",
+        "unit": "Einheit",
+        "status": "Datenstatus",
+        "observed_at": "Beobachtet am",
+        "freshness_seconds": "Datenalter",
+        "missing": "Fehlend / nicht angegeben",
+        "stale": "Veraltet",
+        "available": "Verfügbar",
+        "unavailable": "Nicht verfügbar",
+        "incident": "Vorfallstatus",
+        "id": "Vorfall-ID",
+        "severity": "Erfasster Schweregrad",
+        "acknowledged": "Bestätigt",
+        "snoozed_until": "Zurückgestellt bis",
+        "yes": "Ja",
+        "no": "Nein",
+        "trends": "Aktueller Durchflussverlauf",
+        "rules": "Verwendete Beurteilungsregeln",
+        "interpretation": "Einordnung und nächste Schritte",
+        "possible": "Mögliche Erklärung",
+        "alternatives": "Andere mögliche Ursachen",
+        "advice": "Fachliche Empfehlung",
+        "limitations": "Einschränkungen",
+        "seconds": "Sekunden",
+        "possible_text": "Ein verringerter Durchfluss kann zu einem verschmutzten oder zugesetzten Filter passen. Diese Beobachtungen belegen jedoch keine Filterverstopfung.",
+        "alternatives_text": "Andere Erklärungen sind Pumpendrehzahl oder Betriebsart, ein Pumpendefekt, geschlossene oder eingeschränkte Ventile, eingeschlossene Luft sowie fehlerhafte oder veraltete Sensordaten.",
+        "advice_text": "Lassen Sie bei einer aktiven Auffälligkeit die Filter und den Hydraulikkreis zeitnah von einer qualifizierten Fachkraft prüfen. Wenn Verschmutzung bestätigt wird, lassen Sie die Filter nach den Wartungs- und Sicherheitsvorgaben des Herstellers reinigen. Prüfen Sie auch Pumpe, Ventile, Luft und Sensoren. Öffnen Sie keine unter Druck stehenden Geräte und umgehen Sie keine Sicherheitseinrichtungen.",
+        "limitations_text": "Diese rein lesende Beurteilung basiert auf den bereitgestellten Messwerten. Sie ist keine Diagnose und kein Nachweis eines verstopften Filters. Dies ist keine Sicherheitseinrichtung. Fehlende oder veraltete Messwerte verringern die Aussagekraft. Konfigurierte Schwellen sind Überwachungseinstellungen, keine Sicherheitsgrenzen des Herstellers. Geräteeinstellungen und Steuerungen werden nicht geändert. Die Annahme einer E-Mail durch SMTP belegt nicht die Zustellung an den Empfänger.",
+    },
 }
+
+_LABELS = {
+    "percentage_points": (
+        "percentage points",
+        "points de pourcentage",
+        "puntos porcentuales",
+        "Prozentpunkte",
+    ),
+    "watch": (
+        "Flow decline watch",
+        "Surveillance d'une baisse de débit",
+        "Vigilancia del descenso de caudal",
+        "Beobachtung eines Durchflussrückgangs",
+    ),
+    "urgent_prefix": ("URGENT", "URGENT", "URGENTE", "DRINGEND"),
+    "normal": (
+        "Normal or idle; check the reason",
+        "Normal ou repos ; lire le motif",
+        "Normal o en reposo; consulte el motivo",
+        "Normal oder Leerlauf; Grund prüfen",
+    ),
+    "learning": (
+        "Startup or calibration",
+        "Démarrage ou étalonnage",
+        "Arranque o calibración",
+        "Start oder Kalibrierung",
+    ),
+    "diagnostic_unavailable": (
+        "Diagnosis unavailable",
+        "Diagnostic indisponible",
+        "Diagnóstico no disponible",
+        "Diagnose nicht verfügbar",
+    ),
+    "recipient": ("SMTP recipient", "Destinataire SMTP", "Destinatario SMTP", "SMTP-Empfänger"),
+    "smtp_failure": (
+        "SMTP report could not be accepted. Check the recipient status and the native SMTP integration.",
+        "Le rapport SMTP n'a pas été accepté. Vérifiez l'état du destinataire et l'intégration SMTP native.",
+        "No se ha aceptado el informe SMTP. Revise el estado del destinatario y la integración SMTP nativa.",
+        "Der SMTP-Bericht wurde nicht angenommen. Prüfen Sie den Empfängerstatus und die native SMTP-Integration.",
+    ),
+    "delta_t": (
+        "Delta T (supply - return)",
+        "Delta T (départ - retour)",
+        "Delta T (impulsión - retorno)",
+        "Delta T (Vorlauf - Rücklauf)",
+    ),
+    "awaiting_fresh_report": (
+        "Waiting for a new report after startup",
+        "Attente d'un nouveau rapport après démarrage",
+        "Esperando un informe nuevo tras el arranque",
+        "Warten auf eine neue Meldung nach dem Start",
+    ),
+    "invalid": ("Invalid value", "Valeur invalide", "Valor inválido", "Ungültiger Wert"),
+    "invalid_or_unsupported_unit": (
+        "Invalid value or unsupported unit",
+        "Valeur invalide ou unité non prise en charge",
+        "Valor inválido o unidad no compatible",
+        "Ungültiger Wert oder nicht unterstützte Einheit",
+    ),
+    "ha_report_time": (
+        "HA last_reported is a Home Assistant report time, not a verified controller acquisition time. Timestamps include their UTC offset.",
+        "HA last_reported est une date de rapport Home Assistant, pas une date d'acquisition vérifiée du contrôleur. Les horodatages indiquent leur décalage UTC.",
+        "HA last_reported es la hora de un informe de Home Assistant, no una hora de adquisición verificada del controlador. Las marcas de tiempo incluyen su desfase UTC.",
+        "HA last_reported ist die Meldungszeit in Home Assistant, keine geprüfte Erfassungszeit des Reglers. Zeitstempel enthalten ihren UTC-Versatz.",
+    ),
+    "history_not_evidence": (
+        "Historical trend rows are not new observations. Unavailable values do not establish recovery.",
+        "L'historique ne constitue pas de nouvelles observations. Les valeurs indisponibles ne prouvent pas une récupération.",
+        "El historial no constituye observaciones nuevas. Los valores no disponibles no demuestran recuperación.",
+        "Verlaufswerte sind keine neuen Beobachtungen. Nicht verfügbare Werte belegen keine Erholung.",
+    ),
+    "inventory_truncated": (
+        "Inventory truncated at 150 entities.",
+        "Inventaire limité à 150 entités.",
+        "Inventario limitado a 150 entidades.",
+        "Bestandsliste auf 150 Entitäten begrenzt.",
+    ),
+    "inventory_scoped": (
+        "Device-scoped inventory; only selected state fields.",
+        "Inventaire limité aux appareils choisis et aux champs autorisés.",
+        "Inventario limitado a los dispositivos elegidos y a los campos permitidos.",
+        "Bestandsliste nur für ausgewählte Geräte und zulässige Zustandsfelder.",
+    ),
+    "min_flow_l_min": (
+        "Installation minimum flow",
+        "Débit minimum de l'installation",
+        "Caudal mínimo de la instalación",
+        "Mindestdurchfluss der Anlage",
+    ),
+    "absolute_persistence_s": (
+        "Low-flow persistence",
+        "Persistance du débit faible",
+        "Persistencia del caudal bajo",
+        "Dauer des niedrigen Durchflusses",
+    ),
+    "relative_drop_pct": (
+        "Relative decline threshold",
+        "Seuil de baisse relative",
+        "Umbral de descenso relativo",
+        "Schwelle des relativen Rückgangs",
+    ),
+    "relative_persistence_s": (
+        "Relative-decline persistence",
+        "Persistance de la baisse relative",
+        "Persistencia del descenso relativo",
+        "Dauer des relativen Rückgangs",
+    ),
+    "hysteresis_pct": (
+        "Recovery hysteresis",
+        "Hystérésis de récupération",
+        "Histéresis de recuperación",
+        "Erholungshysterese",
+    ),
+    "recovery_s": (
+        "Healthy recovery duration",
+        "Durée de récupération saine",
+        "Duración de recuperación saludable",
+        "Dauer der gesunden Erholung",
+    ),
+    "startup_grace_s": (
+        "Startup grace",
+        "Délai de démarrage",
+        "Espera de arranque",
+        "Anlaufwartezeit",
+    ),
+    "stale_after_s": (
+        "Report freshness limit",
+        "Délai de fraîcheur",
+        "Límite de antigüedad del informe",
+        "Gültigkeitsdauer der Meldung",
+    ),
+    "calibration_samples": (
+        "Calibration sample count",
+        "Nombre de mesures d'étalonnage",
+        "Número de muestras de calibración",
+        "Anzahl der Kalibrierungswerte",
+    ),
+    "calibration_duration_s": (
+        "Calibration duration",
+        "Durée d'étalonnage",
+        "Duración de calibración",
+        "Kalibrierungsdauer",
+    ),
+    "pump_tolerance_pct": (
+        "Pump-speed tolerance",
+        "Tolérance de vitesse de pompe",
+        "Tolerancia de velocidad de la bomba",
+        "Pumpendrehzahltoleranz",
+    ),
+    "running_modes": (
+        "Active mode values",
+        "Valeurs des modes actifs",
+        "Valores de modos activos",
+        "Werte aktiver Betriebsarten",
+    ),
+    "idle_modes": (
+        "Idle mode values",
+        "Valeurs des modes au repos",
+        "Valores de modos en reposo",
+        "Werte der Leerlaufbetriebsarten",
+    ),
+    "excluded_modes": (
+        "Excluded mode values",
+        "Valeurs des modes exclus",
+        "Valores de modos excluidos",
+        "Werte ausgeschlossener Betriebsarten",
+    ),
+    "pump_on_values": (
+        "Pump-running values",
+        "Valeurs de pompe en marche",
+        "Valores de bomba en marcha",
+        "Werte für laufende Pumpe",
+    ),
+    "pump_off_values": (
+        "Pump-stopped values",
+        "Valeurs de pompe à l'arrêt",
+        "Valores de bomba parada",
+        "Werte für stehende Pumpe",
+    ),
+    "fault_values": (
+        "Active fault values",
+        "Valeurs de défaut actif",
+        "Valores de fallo activo",
+        "Werte aktiver Fehler",
+    ),
+    "fault_clear_values": (
+        "Clear fault values",
+        "Valeurs d'absence de défaut",
+        "Valores sin fallo",
+        "Werte ohne Fehler",
+    ),
+}
+for _index, _language in enumerate(LANGUAGES):
+    _COPY[_language].update({key: values[_index] for key, values in _LABELS.items()})
+
+
+def report_copy(language: str) -> dict[str, str]:
+    return _COPY[normalize_language(language)]
 
 
 def _scalar(value: Any) -> str | None:
@@ -177,12 +480,22 @@ def _measurement(value: Any, unit: str, copy: dict[str, str]) -> str:
 
 
 def _threshold_unit(name: str, copy: dict[str, str]) -> str:
-    lowered = name.casefold()
-    if any(word in lowered for word in ("percent", "pct")):
+    if name == "pump_tolerance_pct":
+        return copy["percentage_points"]
+    if name in {"relative_drop_pct", "hysteresis_pct", "decline_pct"}:
         return "%"
-    if any(word in lowered for word in ("second", "duration", "dwell", "age")):
+    if name in {
+        "absolute_persistence_s",
+        "relative_persistence_s",
+        "recovery_s",
+        "startup_grace_s",
+        "stale_after_s",
+        "calibration_duration_s",
+        "urgent_duration_seconds",
+        "freshness_seconds",
+    }:
         return copy["seconds"]
-    if "flow" in lowered or lowered in {"minimum", "reference"}:
+    if name in {"min_flow_l_min", "minimum_flow", "minimum", "reference"}:
         return "L/min"
     return ""
 
@@ -203,6 +516,9 @@ def _telemetry_status(item: dict[str, Any], copy: dict[str, str]) -> str:
             "fresh": copy["available"],
             "available": copy["available"],
             "ok": copy["available"],
+            "awaiting_fresh_report": copy["awaiting_fresh_report"],
+            "invalid": copy["invalid"],
+            "invalid_or_unsupported_unit": copy["invalid_or_unsupported_unit"],
         }.get(normalized, status)
         if translated not in markers and not (markers and translated == copy["available"]):
             markers.append(translated)
@@ -212,25 +528,36 @@ def _telemetry_status(item: dict[str, Any], copy: dict[str, str]) -> str:
 def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str, str, str]:
     """Return a single-line title, complete plain text, and escaped HTML.
 
-    Only documented snapshot fields and primitive threshold values are rendered.
+    Only documented fields, primitive thresholds and configured context lists are rendered.
     No arbitrary attributes, recipients, credentials or attachments are included.
     """
-    language = "fr" if language.lower().split("-")[0].split("_")[0] == "fr" else "en"
+    language = normalize_language(language)
     copy = _COPY[language]
     kind = (
-        kind if kind in {"report", "test", "urgent", "reminder", "recovery", "alert"} else "report"
+        kind
+        if kind in {"report", "test", "urgent", "watch", "reminder", "recovery", "alert"}
+        else "report"
     )
     incident = snapshot.get("incident")
     incident = incident if isinstance(incident, dict) else {}
     urgent = kind in {"urgent", "reminder"} and incident.get("severity") == "urgent"
     name = _scalar(snapshot.get("name")) or copy["name"]
     label = copy[kind] if kind != "urgent" or urgent else copy["alert"]
-    title = f"{'[URGENT] ' if urgent else ''}{name}: {label}"[:240]
+    prefix = f"[{copy['urgent_prefix']}] " if urgent else ""
+    title = f"{prefix}{name}: {label}"[:240]
     sections: list[tuple[str, list[tuple[str, str]]]] = []
     summary = [
         (copy["generated_at"], _value(snapshot.get("generated_at"), copy)),
-        (copy["state"], _value(snapshot.get("state"), copy)),
-        (copy["reason"], _value(snapshot.get("reason"), copy)),
+        (
+            copy["state"],
+            copy.get(_value(snapshot.get("state"), copy), _value(snapshot.get("state"), copy)),
+        ),
+        (
+            copy["reason"],
+            describe_reason(snapshot["reason_code"], language)
+            if isinstance(snapshot.get("reason_code"), str)
+            else _value(snapshot.get("reason"), copy),
+        ),
     ]
     for field in ("flow", "reference", "minimum"):
         summary.append((copy[field], _measurement(snapshot.get(field), "L/min", copy)))
@@ -249,6 +576,8 @@ def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str,
     for field in ("id", "severity", "acknowledged", "snoozed_until"):
         value = incident.get(field)
         text = copy["yes" if value else "no"] if isinstance(value, bool) else _value(value, copy)
+        if field == "severity":
+            text = copy.get(text, text)
         incident_rows.append((copy[field], text))
     sections.append((copy["incident"], incident_rows))
 
@@ -256,11 +585,13 @@ def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str,
     threshold_rows = []
     if isinstance(thresholds, dict):
         for name, value in thresholds.items():
+            if name in LIST_SETTINGS and isinstance(value, (list, tuple)):
+                value = ", ".join(item for item in value if isinstance(item, str))
             if not isinstance(name, str) or not isinstance(
                 value, (str, int, float, bool, type(None))
             ):
                 continue
-            label = _value(name, copy)
+            label = copy.get(name, _value(name, copy))
             unit = _threshold_unit(name, copy)
             threshold_rows.append((label, _measurement(value, unit, copy).strip()))
     sections.append((copy["thresholds"], threshold_rows))
@@ -306,6 +637,27 @@ def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str,
         if isinstance(rules, list)
         else []
     )
+    rule_codes = snapshot.get("rule_codes")
+    if isinstance(rule_codes, list):
+        rule_rows.extend(
+            ("", copy[code])
+            for code in rule_codes
+            if isinstance(code, str)
+            and code
+            in {
+                "ha_report_time",
+                "history_not_evidence",
+                "inventory_truncated",
+                "inventory_scoped",
+            }
+        )
+    limitation_codes = snapshot.get("limitation_codes")
+    if isinstance(limitation_codes, list):
+        rule_rows.extend(
+            ("", describe_reason(code, language))
+            for code in limitation_codes
+            if isinstance(code, str)
+        )
     sections.append((copy["rules"], rule_rows))
     sections.append(
         (
