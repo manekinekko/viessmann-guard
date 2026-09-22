@@ -40,7 +40,61 @@ de configuration Home Assistant, au même chemin. Redémarrez Home Assistant,
 puis ajoutez l'intégration depuis l'interface. Sauvegardez votre configuration
 avant une installation ou une mise à jour.
 
-## 1. Choisir les sources
+## Démarrage rapide (0.2.0)
+
+Après avoir choisi **Viessmann Guard** dans Ajouter une intégration :
+
+- **Une seule PAC ViCare** : lisez le récapitulatif, puis validez. Une
+  confirmation, aucun identifiant d'entité ni valeur à saisir.
+- **Plusieurs PAC** : choisissez l'appareil dans la liste, validez ce choix,
+  puis confirmez le récapitulatif. Trois interactions, deux formulaires.
+  Donnez d'abord des noms distincts aux appareils homonymes si nécessaire.
+- **Aucune PAC reconnue** : un chemin **Configuration manuelle avancée**
+  est proposé. Ce chemin secondaire n'est pas annoncé comme « trois clics ».
+
+Guard reconnaît les fonctions natives ViCare et leur appareil d'origine,
+indépendamment des noms d'entités modifiés ou traduits. Une passerelle ne
+fournissant que le Wi-Fi n'est pas une deuxième PAC. Le même compte, modèle
+ou une liaison de passerelle ne suffisent pas à fusionner deux appareils.
+Aucune entité source désactivée n'est activée à votre insu.
+
+Le récapitulatif indique le débit, la phase réelle du compresseur, la circulation
+du circuit de chauffage, le compresseur, les températures et la pression
+disponibles. Plusieurs circuits ou compresseurs ambigus restent non associés.
+Une pompe ECS ou un sélecteur de mode ECS ne remplace pas le contexte chauffage.
+Le réglage `auto` d'un thermostat ne prouve pas un mode hydraulique actif.
+Un défaut générique n'est pas automatiquement interprété comme un défaut de débit.
+
+**Vous pouvez commencer sans connaître le débit minimum constructeur.**
+L'observation du débit, l'historique et le contexte des rapports deviennent
+disponibles avec les mesures fraîches. Le minimum reste absent, jamais zéro
+ou une valeur devinée. Les alertes absolues sont désactivées jusqu'au réglage
+du minimum réel. Le suivi relatif demande toujours une référence saine
+explicitement confirmée et un contexte comparable. Si ce contexte manque,
+le diagnostic reste indisponible, sans afficher un faux état Normal.
+**Les emails restent désactivés**, sans ajout de SMTP ni de destinataires.
+Pour lire un rapport sans SMTP, ouvrez **Outils de développement > Actions >
+Viessmann Guard : Lire le rapport d'observation** (`viessmann_guard.get_report`),
+choisissez le moniteur, puis consultez la réponse. Cette action génère le
+rapport localement, sans email ni changement d'état de l'incident.
+
+## Options avancées après création
+
+Dans **Configurer** sur l'intégration, chaque rubrique s'ouvre directement :
+minimum facultatif, sources, règles, emails ou contenu des rapports. Vous
+n'avez pas à refaire l'assistant complet.
+
+**Débit minimum de l'installation (facultatif)** permet de renseigner le minimum
+réel fourni par le constructeur/installateur en L/min. Videz ce champ pour
+désactiver les alertes absolues. Une modification invalide la référence apprise,
+mais ne résout pas un incident actif.
+
+Les configurations manuelles existantes gardent leurs sources, seuils et
+permission d'envoi. Les identités du registre permettent de suivre les
+renommages d'entités après rechargement/redémarrage. La découverte ne remplace
+jamais vos associations avancées.
+
+### Sources manuelles
 
 Si la version 0.1.0 n'apparaît pas dans **Ajouter une intégration**, ou si son
 formulaire échoue, installez la version 0.1.1 ou ultérieure. Elle corrige la
@@ -75,9 +129,9 @@ Les domaines pris en charge sont `sensor`, `binary_sensor`, `select`, `climate`
 et `number`. Les sources `number` sont lues uniquement : aucune commande ne
 modifie leur valeur.
 
-## 2. Définir les règles
+### Règles
 
-Renseignez le débit minimum propre à votre installation avec l'aide de la
+Si vous le connaissez, renseignez le débit minimum propre à votre installation avec l'aide de la
 documentation du matériel ou d'un professionnel. **Aucun seuil présenté par
 ce projet ne constitue un minimum Viessmann.** Les valeurs des tests et des
 démonstrations sont fictives.
@@ -132,7 +186,7 @@ Après un démarrage ou un rechargement, de nouveaux rapports sont nécessaires
 avant tout envoi lié à un incident ou toute reconnaissance de récupération.
 Un état restauré ne suffit pas.
 
-## 3. Configurer les emails
+### Emails
 
 Configurez la connexion et les destinataires dans l'interface de l'intégration
 **SMTP native de Home Assistant**. Sélectionnez ensuite ses entités `notify`
@@ -175,7 +229,7 @@ rappelle pas un message déjà en cours d'envoi ou accepté par SMTP. La
 réactivation ne rejoue pas un ancien stock d'alertes : l'incident courant doit
 être confirmé à nouveau par des données fraîches.
 
-## 4. Limiter les rapports
+### Contenu des rapports
 
 L'inventaire est limité aux appareils sélectionnés et à certaines catégories de
 mesures. Vous pouvez ajouter des entités explicitement ou en exclure.
@@ -205,6 +259,9 @@ des clés stables, indépendantes des libellés traduits.
 Les cartes sont natives : entités, historique, texte et boutons nommés.
 Elles reprennent votre thème et ne nécessitent aucun composant frontend
 supplémentaire. Le graphique utilise l'historique de Recorder.
+La carte d'état affiche aussi les limites du diagnostic. Le minimum non
+renseigné apparaît inconnu, jamais comme un zéro inventé. L'observation seule
+ou le suivi relatif ne constituent pas une protection complète.
 
 Lisez toujours le motif avec l'état. Les cinq états publics sont `normal`,
 `learning`, `watch`, `urgent` et `diagnostic_unavailable`. `normal` peut

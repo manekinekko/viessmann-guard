@@ -1,6 +1,6 @@
 # Architecture
 
-Viessmann Guard is a calculated Home Assistant helper. It consumes existing
+Viessmann Guard is a read-only Home Assistant service integration. It consumes existing
 entity reports, evaluates conservative flow rules, keeps incident and delivery
 state, and publishes native HA entities. It neither polls Viessmann nor issues
 heat-pump commands. A browser is not part of the monitoring loop.
@@ -22,9 +22,34 @@ silently discarding an existing reference or incident history.
 
 ## Configuration contract
 
-The initial flow has `user`, `rules`, `emails`, and `report` steps. The options
-menu offers `sources`, `rules`, `emails`, and `report`. Options and the email
-switch must share the same persistent configuration.
+The initial `user` dispatches to a zero-field `confirm` for one native ViCare
+candidate, or `select_device` (native list) then `confirm` for multiple candidates.
+With no recognized candidate, `user` offers secondary manual setup:
+`manual`, `rules`, `emails`, `report`. Options independently offer `minimum`,
+`sources`, `rules`, `emails`, and `report`. Options and the email switch share
+the same persistent configuration.
+
+`discovery.py` matches the native ViCare descriptor keys, translation keys,
+domain and unique-ID suffix after the exact registered device identifier.
+Fixtures check those contracts against each installed HA version's source.
+Device membership and config-entry ownership, not model/friendly name, define
+scope. A gateway alone is not a PAC candidate. Devices are deliberately not
+merged merely because they share a `via_device_id` link or account.
+Unverified split-device configurations require manual mapping.
+
+Global `volumetric_flow`, compressor `compressor_phase-<id>` and heating-circuit
+`circulationpump_active-<id>` are the main roles. Heating/cooling are eligible;
+off is idle; defrost and unknown phases cannot form healthy evidence. DHW pumps,
+DHW selectors and climate `auto` never substitute. No generic `device_error`
+mapping is used for low-flow diagnosis. Multiple role candidates are ambiguous
+even if one is disabled. No upstream registry is changed.
+
+Config entries remain major version 1, minor version 3. Migration adds registry
+UUID bindings without replacing data/options, thresholds or email permission.
+Bindings follow entity renames and report exclusions; source identity, not the
+renameable entity ID, enters the baseline fingerprint. Legacy unchanged
+fingerprints remain compatible. Explicit source/rule changes still invalidate
+the baseline, preserving unresolved incidents and maintenance history.
 
 ### Sources
 
@@ -33,8 +58,8 @@ devices. The source roles are:
 
 | Field | Required at setup | Interpretation |
 | --- | --- | --- |
-| `flow_entity` | Yes | Numeric volumetric flow with an explicit supported unit |
-| `mode_entity` | Yes | Raw operating state matched against configured mode sets |
+| `flow_entity` | Manual path only | Numeric volumetric flow with an explicit supported unit |
+| `mode_entity` | Manual path only | Raw operating state matched against configured mode sets |
 | `pump_entity` | No | Pump-running status; necessary for active flow diagnosis |
 | `pump_speed_entity` | No | Numeric value from 0 to 100, explicitly in `%` |
 | `fault_entity` | No | Fault status, with both fault and clear mappings |
@@ -49,8 +74,10 @@ Source entities must be enabled, belong to selected devices, and use a
 supported source domain (`sensor`, `binary_sensor`, `select`, `climate`, or
 `number`). Explicit `number` sources are read-only; no value-setting action is
 sent.
-Guard's own entities are not valid inputs. Setup rejects unavailable required
-evidence and invalid units rather than guessing.
+Guard's own entities are not valid inputs. Manual source selection rejects
+unavailable evidence and invalid units. Quick setup can retain a recognized
+unavailable source, explicitly exposing limited observation until reports
+become usable; disabled/ambiguous sources stay unmapped.
 
 Flow is normalized to litres per minute for comparison. Supported explicit
 units are `L/min`, `L/h`, `m³/h` (or `m3/h`), `m³/s` (or `m3/s`), and
@@ -70,7 +97,7 @@ rate.
 
 | Option | Default | Allowed range |
 | --- | --- | --- |
-| `min_flow_l_min` | Must be supplied | 0.001 to 100000 L/min |
+| `min_flow_l_min` | Absent (`None`) | Optional; 0.001 to 100000 L/min when supplied |
 | `absolute_persistence_s` | 180 | 1 to 86400 seconds |
 | `relative_drop_pct` | 25 | 1 to 90 percent |
 | `relative_persistence_s` | 1800 | 1 to 604800 seconds |
@@ -157,6 +184,14 @@ serial, authentication, or arbitrary diagnostic attributes are exported.
 ## Detection and calibration
 
 Absolute detection compares flow with the configured installation minimum.
+Without that minimum it is disabled, not replaced by a zero threshold.
+Current flow/history remain available independently of diagnostic eligibility.
+Healthy calibration without a minimum requires explicitly confirmed health,
+positive fresh flow and comparable running context. Relative monitoring and
+stable reference-based recovery then work without an absolute threshold, but
+the missing absolute capability stays visible. Removing the minimum cannot
+resolve a retained absolute/native incident; such recovery needs its minimum
+restored and fresh eligible observations.
 Relative detection compares comparable flow with an explicitly authorized
 healthy reference. Persistence separates a brief fluctuation from sustained
 evidence. Hysteresis and a separate recovery duration prevent an incident from
@@ -265,6 +300,9 @@ Button keys are `acknowledge`, `snooze` (pause reminders for 24 hours), `record_
 `confirm_calibration`, and `test_email`. Services use `entry_id` to identify the
 monitor; `snooze` accepts 1 to 168 hours and `confirm_calibration` requires
 `confirmed: true`.
+`get_report` is a response-only native action taking `entry_id`. It returns
+`title`, `message`, and `html` using the same bounded report renderer, without
+mail permission, queue changes, incident mutation or equipment actions.
 
 The calibration entity button deliberately passes confirmation itself. Its
 first-person label states that the user is confirming healthy operation.
@@ -279,6 +317,9 @@ with existing IDs can still change the actual registry ID.
 
 The state entity also exposes a readable `reason_text` attribute. The reason
 sensor remains an enum with raw machine codes and localized display strings.
+It also exposes `absolute_alerts_configured`, `limitations`, `limitations_text`
+and the initial `source_statuses` from discovery. Missing minimum uses the
+`minimum_not_configured` reason and never a normal running/idle public state.
 
 ## Local verification
 

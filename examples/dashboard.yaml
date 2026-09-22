@@ -34,6 +34,14 @@ views:
             name: Motif
           - type: attribute
             entity: sensor.demo_guard_state
+            attribute: absolute_alerts_configured
+            name: Seuil absolu renseigné
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: limitations_text
+            name: Limites du diagnostic
+          - type: attribute
+            entity: sensor.demo_guard_state
             attribute: acknowledged
             name: Incident acquitté
           - type: attribute

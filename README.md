@@ -21,8 +21,10 @@ the dashboard is closed. This project is not affiliated with Viessmann.
   Home Assistant OS and Container manage their own Python runtime.
 - An existing integration that provides entities for the equipment you want to
   monitor. Viessmann Guard does not collect Viessmann credentials.
-- A numeric flow entity with an explicit supported volumetric flow unit, an
-  operating-mode entity, and their device registrations.
+- For automatic setup: native ViCare devices with recognized flow/compressor
+  descriptors. Renamed or translated entities are supported.
+- For active diagnosis: numeric flow with an explicit supported volumetric unit
+  and an unambiguous actual operating phase, not just a climate `auto` setting.
 - A mapped pump-running entity for active flow diagnostics. Setup can omit it,
   but active diagnostics then remain unavailable rather than assuming the pump
   is running.
@@ -60,24 +62,63 @@ and form-schema serialization. After copying an update, restart Home Assistant
 when appropriate and refresh the browser. The generic UI message about the
 "latest version" does not by itself mean HA 2026.8.3 or newer needs upgrading.
 
-## Configure
+## Quick setup (0.2.0)
 
-The UI walks through four steps. You can revisit them in the integration's
-options.
+After choosing **Viessmann Guard** in Add integration:
 
-1. **Sources:** name the monitor, select the equipment devices, and map existing
+- **One ViCare heat pump:** review the detected sources and confirm. One
+  confirmation, no fields to fill.
+- **Several heat pumps:** select the named device in the list, submit, then
+  confirm the summary. Three interactions, two forms. Rename identically named
+  source devices first if you cannot distinguish them.
+- **No supported candidate:** an explicitly secondary **Advanced manual setup**
+  path is available. This path is not the three-click experience.
+
+The integration identifies native ViCare function keys and registered device
+ownership, not editable entity names. A gateway exposing only Wi-Fi telemetry
+is not a second heat pump. Sharing an account, model name or gateway does not
+merge separate devices. Disabled upstream entities are never enabled for you.
+Ambiguous circuits/compressors are left unmapped, not arbitrarily selected.
+
+The summary lists flow, actual compressor phase, heating-circuit circulation,
+compressor, temperatures and pressure when exposed. A DHW circulation pump or
+DHW operating-mode select is **not** substituted for heating hydraulics.
+Climate `auto` is not evidence of an active hydraulic mode. Generic native
+errors are not automatically mapped to low-flow faults.
+
+**Observation starts without a manufacturer minimum.** Current flow/history
+and device-scoped reports become available with fresh measurements. The minimum
+is absent (`None`), not zero or a guessed threshold. Absolute low-flow alerts
+remain disabled until you enter the installation's real minimum. Relative
+monitoring still requires explicit healthy calibration and comparable operating
+context. Missing context leaves diagnosis unavailable, not "Normal".
+**Emails stay OFF**, with no SMTP setup or recipients added.
+To read a report without SMTP, use **Developer tools > Actions >
+Viessmann Guard: Read the observation report** (`viessmann_guard.get_report`),
+choose the monitor, and read the returned response. This action only renders
+the report locally; it does not send email or change incident state.
+
+### Advanced options, only when needed
+
+Open the integration's **Configure** options menu. Each section is independent;
+you do not have to repeat the setup wizard:
+
+1. **Optional installation minimum flow:** enter the actual minimum from the
+   manufacturer/installer in L/min, or clear it to disable absolute alerts.
+   Changing it invalidates the learned reference but cannot clear an incident.
+2. **Sources:** name the monitor, select the equipment devices, and map existing
    entities explicitly. Only entities belonging to the selected devices are
    eligible. Supported source domains include `sensor`, `binary_sensor`,
    `select`, `climate`, and read-only `number` entities. Entity names alone
    are not proof of what a sensor measures.
-2. **Detection rules:** enter the installation-specific minimum flow and exact
+3. **Detection rules:** adjust durations and exact
    raw values for active, idle, and excluded modes. Exclude defrost and other
    incomparable modes. Map pump on/off values and, if a fault source is selected,
    both fault and clear values. Unknown mappings do not count as healthy.
-3. **Emails:** select native SMTP recipient entities, the report language, and
+4. **Emails:** select native SMTP recipient entities, the report language, and
    optional reminders/watch notifications. **Emails start OFF, including test
    messages.** Enabling requires at least one valid recipient.
-4. **Report contents:** review device-scoped telemetry, explicitly include
+5. **Report contents:** review device-scoped telemetry, explicitly include
    relevant entities, and exclude unwanted inventory items. Explicit diagnostic
    source mappings stay visible even if also listed as exclusions.
 
@@ -85,6 +126,10 @@ There is **no universal or manufacturer minimum supplied by this project**.
 Obtain the appropriate limit for your installation from reliable equipment
 documentation or a qualified professional. Numerical values in tests,
 demonstrations, and screenshots are synthetic, not installation advice.
+
+Existing manual configurations keep their mappings, thresholds and email
+permission during migration. Sources are bound to registry identities so entity
+renames survive reload/restart. Discovery never overwrites expert overrides.
 
 ### A fixed, healthy reference
 
@@ -130,6 +175,9 @@ The dashboard shows the state and reason, current/minimum/reference flow,
 decline, maintenance and telemetry timestamps, email toggle, and individual
 recipient outcomes. It uses text as well as icons, so color is not the only
 status indicator. The history graph needs Recorder history.
+The status also lists diagnostic limitations. An unset minimum appears as
+unknown, never a fabricated zero. Observation/relative-only operation is not
+presented as full protection or an unconditional normal state.
 
 Always read the reason alongside the state. `normal` can mean a pending
 threshold, missing reference, or idle mode, not guaranteed healthy equipment.
