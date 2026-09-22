@@ -1,0 +1,444 @@
+{
+  "title": "Viessmann Guard",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Associer les sources existantes",
+        "description": "Surveillance en lecture seule des entités Home Assistant existantes, sans identifiants Viessmann ni appels API supplémentaires. Sélectionnez d'abord les appareils. Le débit et le mode sont obligatoires ; le diagnostic actif exige aussi l'état de marche de la pompe. Ce n'est pas un dispositif de sécurité.",
+        "data": {
+          "name": "Nom du moniteur",
+          "device_ids": "Appareils surveillés",
+          "flow_entity": "Débit volumique",
+          "mode_entity": "Mode de fonctionnement",
+          "pump_entity": "État de marche de la pompe",
+          "pump_speed_entity": "Vitesse de la pompe",
+          "fault_entity": "État de défaut natif",
+          "supply_temperature_entity": "Température de départ",
+          "return_temperature_entity": "Température de retour",
+          "pressure_entity": "Pression hydraulique",
+          "outside_temperature_entity": "Température extérieure",
+          "compressor_entity": "État du compresseur",
+          "valve_entity": "État de la vanne"
+        },
+        "data_description": {
+          "name": "Un nom court, par exemple Demo Guard. Les identifiants réels des entités peuvent différer.",
+          "device_ids": "Seules les sources activées appartenant à ces appareils sont admissibles.",
+          "flow_entity": "Nombre fini positif ou nul avec une unité volumique explicitement prise en charge. Ne présumez jamais une unité absente.",
+          "mode_entity": "Associez les états bruts aux modes actifs, au repos ou exclus à l'étape suivante.",
+          "pump_entity": "Nécessaire au diagnostic actif du débit. Sans cette source, ce diagnostic reste indisponible.",
+          "pump_speed_entity": "Pourcentage facultatif de 0 à 100, avec l'unité %. Sert à comparer des fonctionnements similaires.",
+          "fault_entity": "Facultatif. Exige des valeurs explicites de défaut et d'absence de défaut ; un défaut natif n'en identifie pas la cause physique.",
+          "supply_temperature_entity": "Température de départ facultative pour contextualiser les rapports.",
+          "return_temperature_entity": "Température de retour facultative pour contextualiser les rapports.",
+          "pressure_entity": "Pression facultative du circuit pour les rapports, sans commande de l'équipement.",
+          "outside_temperature_entity": "Température extérieure facultative pour les rapports.",
+          "compressor_entity": "Télémétrie facultative du compresseur. Aucune commande n'est envoyée.",
+          "valve_entity": "Télémétrie facultative de la vanne. Aucune commande n'est envoyée."
+        }
+      },
+      "rules": {
+        "title": "Définir les règles de comparaison",
+        "description": "Utilisez le minimum propre à l'installation, issu d'une documentation fiable ou d'un professionnel qualifié. Les valeurs logicielles et de démonstration ne sont pas des limites fabricant. Associez les états bruts, excluez le dégivrage et séparez les catégories incompatibles.",
+        "data": {
+          "min_flow_l_min": "Débit minimum de l'installation (L/min)",
+          "absolute_persistence_s": "Persistance du débit faible (secondes)",
+          "relative_drop_pct": "Seuil de baisse relative (%)",
+          "relative_persistence_s": "Persistance de la baisse relative (secondes)",
+          "hysteresis_pct": "Hystérésis de récupération (%)",
+          "recovery_s": "Durée de récupération saine (secondes)",
+          "startup_grace_s": "Délai de démarrage (secondes)",
+          "stale_after_s": "Limite de fraîcheur des rapports (secondes)",
+          "calibration_samples": "Nombre de mesures d'étalonnage",
+          "calibration_duration_s": "Durée d'étalonnage (secondes)",
+          "pump_tolerance_pct": "Tolérance de vitesse de pompe (points de pourcentage)",
+          "running_modes": "Valeurs des modes actifs",
+          "idle_modes": "Valeurs des modes au repos",
+          "excluded_modes": "Valeurs des modes exclus",
+          "pump_on_values": "Valeurs de pompe en marche",
+          "pump_off_values": "Valeurs de pompe à l'arrêt",
+          "fault_values": "Valeurs de défaut actif",
+          "fault_clear_values": "Valeurs d'absence de défaut"
+        },
+        "data_description": {
+          "min_flow_l_min": "Limite obligatoire propre à votre installation. Ce projet ne fournit aucun minimum universel ou fabricant.",
+          "absolute_persistence_s": "Durée requise des observations admissibles de débit faible avant un incident urgent.",
+          "relative_drop_pct": "Baisse par rapport à une référence saine fixe, explicitement confirmée, en conditions comparables.",
+          "relative_persistence_s": "Durée requise d'une baisse relative comparable avant un incident à surveiller.",
+          "hysteresis_pct": "Marge de récupération, strictement inférieure au seuil de baisse relative.",
+          "recovery_s": "Durée de mesures fraîches, admissibles et saines exigée pour la récupération. Une maintenance ne la remplace pas.",
+          "startup_grace_s": "Attente après le démarrage ou un changement de contexte avant l'évaluation du débit.",
+          "stale_after_s": "Âge d'un rapport HA, pas de la mesure physique. Une valeur inchangée conservée en cache peut devenir périmée.",
+          "calibration_samples": "Nombre minimum de nouvelles observations après confirmation explicite d'un étalonnage sain.",
+          "calibration_duration_s": "Durée minimum d'observation pour une référence saine et stable. Pas de réapprentissage automatique à la baisse.",
+          "pump_tolerance_pct": "Écart maximal de vitesse comparable lorsque la source facultative en pourcentage est configurée.",
+          "running_modes": "Au moins une valeur brute de mode actif. Les modes inconnus ou non associés ne prouvent pas un fonctionnement sain.",
+          "idle_modes": "Modes bruts dans lesquels le diagnostic actif du débit n'est pas approprié.",
+          "excluded_modes": "Valeurs brutes du dégivrage et des fonctionnements non comparables. Exclues de l'étalonnage.",
+          "pump_on_values": "Valeurs brutes confirmant explicitement que la pompe fonctionne.",
+          "pump_off_values": "Valeurs brutes confirmant explicitement que la pompe est arrêtée.",
+          "fault_values": "Obligatoires si une source de défaut est configurée. Sans recoupement avec l'absence de défaut.",
+          "fault_clear_values": "Obligatoires si une source de défaut est configurée. Un état non associé n'est pas considéré comme sain."
+        }
+      },
+      "emails": {
+        "title": "Choisir les destinataires SMTP natifs",
+        "description": "Configurez d'abord SMTP et une entité par destinataire dans Home Assistant. Ne recopiez aucun mot de passe ici. Les emails sont désactivés par défaut, tests compris. La désactivation annule les envois en attente mais ne rappelle pas un message SMTP en cours.",
+        "data": {
+          "emails_enabled": "Activer les emails",
+          "recipients": "Entités des destinataires SMTP",
+          "reminder_hours": "Intervalle des rappels (heures)",
+          "watch_email": "Envoyer des emails au stade de surveillance",
+          "language": "Langue des rapports"
+        },
+        "data_description": {
+          "emails_enabled": "Même réglage persistant que l'interrupteur. La réactivation exige une nouvelle confirmation de l'incident courant, sans rejouer d'anciennes alertes.",
+          "recipients": "Jusqu'à 20 entités de destinataires SMTP natifs. Le registre et les sous-entrées sont vérifiés ; tous les alias équivalents ne sont pas détectables.",
+          "reminder_hours": "Intervalle de 1 à 720 heures. L'acquittement et la suspension ne résolvent pas l'incident.",
+          "watch_email": "Notifier aussi une baisse relative persistante au stade de surveillance. Désactivé par défaut.",
+          "language": "Langue des emails : en pour anglais, fr pour français. Les entités suivent la langue de l'interface HA."
+        }
+      },
+      "report": {
+        "title": "Vérifier le contenu des rapports",
+        "description": "Les rapports utilisent un inventaire limité aux appareils sélectionnés, sans diagnostics bruts. Vérifiez la confidentialité des noms et valeurs. Chaque mesure conserve son statut, sa date de rapport et son âge.",
+        "data": {
+          "report_entities": "Entités supplémentaires du rapport",
+          "report_exclude": "Exclusions de l'inventaire"
+        },
+        "data_description": {
+          "report_entities": "Jusqu'à 150 inclusions explicites sur les appareils sélectionnés. N'incluez ni identifiants privés ni texte sensible.",
+          "report_exclude": "Retirez les éléments indésirables. Les sources diagnostiques explicitement associées restent visibles même si elles sont aussi exclues."
+        }
+      }
+    },
+    "error": {
+      "invalid_device": "Sélectionnez au moins un appareil existant.",
+      "required_source": "Sélectionnez une entité pour cette source obligatoire.",
+      "invalid_source": "Choisissez une source activée sur un appareil sélectionné, dans un domaine pris en charge et hors de Viessmann Guard.",
+      "source_unavailable": "Cette source n'a pas d'état actuel exploitable. Rétablissez ses rapports avant de la sélectionner.",
+      "invalid_flow_unit": "Le débit doit être un nombre fini positif ou nul avec une unité volumique explicite prise en charge.",
+      "invalid_speed_unit": "La vitesse de pompe doit être un nombre fini de 0 à 100 avec l'unité %.",
+      "invalid_measurement_unit": "Utilisez une valeur finie avec une unité de température ou de pression prise en charge (pression non négative).",
+      "required_modes": "Renseignez au moins une valeur brute de mode actif.",
+      "overlapping_values": "Ces groupes de valeurs se recoupent. Séparez les valeurs des états incompatibles.",
+      "required_fault_mapping": "Renseignez les valeurs de défaut actif et d'absence de défaut pour la source configurée.",
+      "invalid_hysteresis": "L'hystérésis de récupération doit être inférieure au seuil de baisse relative.",
+      "invalid_smtp_recipient": "Choisissez une entité notify SMTP native activée avec une sous-entrée de destinataire valide.",
+      "too_many_recipients": "Sélectionnez au maximum 20 entités de destinataires.",
+      "duplicate_recipient": "Deux entités sélectionnées désignent le même destinataire SMTP. N'en conservez qu'une.",
+      "required_recipient": "Sélectionnez au moins un destinataire SMTP valide avant d'activer les emails.",
+      "invalid_report_entity": "Choisissez une entité admissible et non privée appartenant à un appareil sélectionné."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de Viessmann Guard",
+        "description": "Modifiez les sources, les règles, l'autorisation des emails ou le contenu des rapports. Aucune option ne pilote la PAC.",
+        "menu_options": {
+          "emails": "Emails et destinataires",
+          "sources": "Sources de l'équipement",
+          "rules": "Règles de détection",
+          "report": "Contenu des rapports"
+        }
+      },
+      "sources": {
+        "title": "Associer les sources existantes",
+        "description": "Sélectionnez les entités existantes des appareils. Le diagnostic actif du débit exige l'état de marche de la pompe. Aucun identifiant Viessmann ni appel API supplémentaire.",
+        "data": {
+          "name": "Nom du moniteur",
+          "device_ids": "Appareils surveillés",
+          "flow_entity": "Débit volumique",
+          "mode_entity": "Mode de fonctionnement",
+          "pump_entity": "État de marche de la pompe",
+          "pump_speed_entity": "Vitesse de la pompe",
+          "fault_entity": "État de défaut natif",
+          "supply_temperature_entity": "Température de départ",
+          "return_temperature_entity": "Température de retour",
+          "pressure_entity": "Pression hydraulique",
+          "outside_temperature_entity": "Température extérieure",
+          "compressor_entity": "État du compresseur",
+          "valve_entity": "État de la vanne"
+        },
+        "data_description": {
+          "name": "Un nom court. Un renommage ou un identifiant déjà utilisé peut changer l'identifiant réel ; les libellés traduits ne changent pas le suffixe par défaut.",
+          "device_ids": "Seules les sources activées appartenant à ces appareils sont admissibles.",
+          "flow_entity": "Nombre fini positif ou nul avec une unité volumique explicitement prise en charge.",
+          "mode_entity": "Les états bruts doivent correspondre aux modes actifs, au repos et exclus configurés.",
+          "pump_entity": "Nécessaire au diagnostic actif du débit. Sans cette source, ce diagnostic reste indisponible.",
+          "pump_speed_entity": "Pourcentage facultatif de 0 à 100 avec l'unité %, pour comparer le fonctionnement de la pompe.",
+          "fault_entity": "Facultatif. Renseignez défaut et absence de défaut dans les règles de détection.",
+          "supply_temperature_entity": "Température de départ facultative pour les rapports.",
+          "return_temperature_entity": "Température de retour facultative pour les rapports.",
+          "pressure_entity": "Pression facultative du circuit pour les rapports.",
+          "outside_temperature_entity": "Température extérieure facultative pour les rapports.",
+          "compressor_entity": "Télémétrie facultative du compresseur, jamais une commande.",
+          "valve_entity": "Télémétrie facultative de la vanne, jamais une commande."
+        }
+      },
+      "rules": {
+        "title": "Définir les règles de comparaison",
+        "description": "Utilisez un minimum propre à l'installation, pas une valeur de démonstration. Associez les états bruts et excluez le dégivrage. Des observations inconnues, périmées ou non comparables ne prouvent jamais une récupération.",
+        "data": {
+          "min_flow_l_min": "Débit minimum de l'installation (L/min)",
+          "absolute_persistence_s": "Persistance du débit faible (secondes)",
+          "relative_drop_pct": "Seuil de baisse relative (%)",
+          "relative_persistence_s": "Persistance de la baisse relative (secondes)",
+          "hysteresis_pct": "Hystérésis de récupération (%)",
+          "recovery_s": "Durée de récupération saine (secondes)",
+          "startup_grace_s": "Délai de démarrage (secondes)",
+          "stale_after_s": "Limite de fraîcheur des rapports (secondes)",
+          "calibration_samples": "Nombre de mesures d'étalonnage",
+          "calibration_duration_s": "Durée d'étalonnage (secondes)",
+          "pump_tolerance_pct": "Tolérance de vitesse de pompe (points de pourcentage)",
+          "running_modes": "Valeurs des modes actifs",
+          "idle_modes": "Valeurs des modes au repos",
+          "excluded_modes": "Valeurs des modes exclus",
+          "pump_on_values": "Valeurs de pompe en marche",
+          "pump_off_values": "Valeurs de pompe à l'arrêt",
+          "fault_values": "Valeurs de défaut actif",
+          "fault_clear_values": "Valeurs d'absence de défaut"
+        },
+        "data_description": {
+          "min_flow_l_min": "Obtenez cette limite dans une documentation fiable ou auprès d'un professionnel. Aucun minimum fabricant n'est fourni.",
+          "absolute_persistence_s": "Durée exigée des observations admissibles de débit faible avant un incident urgent.",
+          "relative_drop_pct": "Baisse par rapport à la référence saine fixe, explicitement confirmée.",
+          "relative_persistence_s": "Durée exigée des observations de baisse comparable avant un incident à surveiller.",
+          "hysteresis_pct": "Marge de récupération, inférieure au seuil de baisse relative.",
+          "recovery_s": "Durée exigée de nouvelles observations saines, pas du temps passé hors ligne.",
+          "startup_grace_s": "Attente après un démarrage ou un changement de contexte.",
+          "stale_after_s": "Limite d'âge du rapport HA, pas de la mesure physique. Une valeur en cache peut devenir périmée.",
+          "calibration_samples": "Nombre minimum de nouvelles observations après confirmation d'un étalonnage sain.",
+          "calibration_duration_s": "Durée minimum d'observations saines. La référence ne dérive pas automatiquement à la baisse.",
+          "pump_tolerance_pct": "Écart de vitesse admissible en points de pourcentage pour un fonctionnement comparable.",
+          "running_modes": "Au moins une valeur brute explicite de mode actif.",
+          "idle_modes": "Modes bruts dans lesquels le diagnostic actif du débit est suspendu.",
+          "excluded_modes": "Incluez le dégivrage et les modes non comparables. Ils ne participent pas à l'étalonnage.",
+          "pump_on_values": "Valeurs brutes confirmant que la pompe fonctionne.",
+          "pump_off_values": "Valeurs brutes confirmant que la pompe est arrêtée.",
+          "fault_values": "Valeurs explicites de défaut actif, obligatoires si une source de défaut est sélectionnée.",
+          "fault_clear_values": "Valeurs explicites d'absence de défaut, distinctes des valeurs de défaut actif."
+        }
+      },
+      "emails": {
+        "title": "Emails et destinataires SMTP natifs",
+        "description": "Utilisez les entités configurées dans l'interface SMTP de Home Assistant. Aucun mot de passe ici. La désactivation bloque aussi les tests et les nouvelles tentatives, sans rappeler les messages déjà en cours d'envoi.",
+        "data": {
+          "emails_enabled": "Activer les emails",
+          "recipients": "Entités des destinataires SMTP",
+          "reminder_hours": "Intervalle des rappels (heures)",
+          "watch_email": "Envoyer des emails au stade de surveillance",
+          "language": "Langue des rapports"
+        },
+        "data_description": {
+          "emails_enabled": "Réglage partagé avec l'interrupteur persistant. Après réactivation, l'incident courant doit être confirmé par de nouvelles données.",
+          "recipients": "Jusqu'à 20 destinataires SMTP natifs validés. Le domaine est normalisé, la casse avant @ est conservée.",
+          "reminder_hours": "Intervalle de 1 à 720 heures, sous réserve de l'acquittement et de la suspension.",
+          "watch_email": "Autoriser les emails pour les incidents de baisse relative persistante.",
+          "language": "Langue des rapports : en (anglais) ou fr (français), indépendamment de l'interface HA."
+        }
+      },
+      "report": {
+        "title": "Vérifier le contenu des rapports",
+        "description": "Limitez les rapports aux appareils et protégez les données privées. Aucun diagnostic brut ni attribut arbitraire. Vérifiez les noms neutres et la fraîcheur de chaque mesure.",
+        "data": {
+          "report_entities": "Entités supplémentaires du rapport",
+          "report_exclude": "Exclusions de l'inventaire"
+        },
+        "data_description": {
+          "report_entities": "Jusqu'à 150 inclusions explicites admissibles. Aucun identifiant privé ni texte sensible.",
+          "report_exclude": "Excluez les éléments indésirables. Les sources diagnostiques explicitement associées restent visibles."
+        }
+      }
+    },
+    "error": {
+      "invalid_device": "Sélectionnez au moins un appareil existant.",
+      "required_source": "Sélectionnez une entité pour cette source obligatoire.",
+      "invalid_source": "Choisissez une source activée sur un appareil sélectionné, dans un domaine pris en charge et hors de Viessmann Guard.",
+      "source_unavailable": "Cette source n'a pas d'état actuel exploitable. Rétablissez ses rapports avant de la sélectionner.",
+      "invalid_flow_unit": "Le débit doit être un nombre fini positif ou nul avec une unité volumique explicite prise en charge.",
+      "invalid_speed_unit": "La vitesse de pompe doit être un nombre fini de 0 à 100 avec l'unité %.",
+      "invalid_measurement_unit": "Utilisez une valeur finie avec une unité de température ou de pression prise en charge (pression non négative).",
+      "required_modes": "Renseignez au moins une valeur brute de mode actif.",
+      "overlapping_values": "Ces groupes de valeurs se recoupent. Séparez les valeurs des états incompatibles.",
+      "required_fault_mapping": "Renseignez les valeurs de défaut actif et d'absence de défaut pour la source configurée.",
+      "invalid_hysteresis": "L'hystérésis de récupération doit être inférieure au seuil de baisse relative.",
+      "invalid_smtp_recipient": "Choisissez une entité notify SMTP native activée avec une sous-entrée de destinataire valide.",
+      "too_many_recipients": "Sélectionnez au maximum 20 entités de destinataires.",
+      "duplicate_recipient": "Deux entités sélectionnées désignent le même destinataire SMTP. N'en conservez qu'une.",
+      "required_recipient": "Sélectionnez au moins un destinataire SMTP valide avant d'activer les emails.",
+      "invalid_report_entity": "Choisissez une entité admissible et non privée appartenant à un appareil sélectionné."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "État",
+        "state": {
+          "normal": "Évaluation normale ou suspendue ; voir le motif",
+          "learning": "Démarrage ou étalonnage",
+          "watch": "À surveiller",
+          "urgent": "Urgent",
+          "diagnostic_unavailable": "Diagnostic indisponible"
+        },
+        "state_attributes": {
+          "reason": {"name": "Code du motif"},
+          "incident_id": {"name": "Identifiant d'incident"},
+          "incident_severity": {"name": "Gravité de l'incident"},
+          "incident_confirmed": {"name": "Incident confirmé par des données fraîches"},
+          "acknowledged": {"name": "Acquitté"},
+          "snoozed_until": {"name": "Notifications suspendues jusqu'au"},
+          "anomaly_duration_seconds": {"name": "Durée de l'anomalie (secondes)"}
+        }
+      },
+      "reason": {
+        "name": "Motif",
+        "state": {
+          "awaiting_observations": "Attente d'observations des sources",
+          "clock_moved_backwards": "L'horloge a reculé ; de nouvelles données sont nécessaires",
+          "flow_unavailable": "Rapport de débit absent, indisponible ou inexploitable",
+          "flow_stale": "Rapport de débit périmé",
+          "mode_unavailable": "Rapport du mode absent ou inexploitable",
+          "mode_stale": "Rapport du mode périmé",
+          "pump_unavailable": "Rapport de marche de la pompe absent ou inexploitable",
+          "pump_stale": "Rapport de marche de la pompe périmé",
+          "pump_speed_unavailable": "Rapport de vitesse de pompe absent ou inexploitable",
+          "pump_speed_stale": "Rapport de vitesse de pompe périmé",
+          "fault_unavailable": "Rapport de défaut configuré absent ou inexploitable",
+          "fault_stale": "Rapport de défaut configuré périmé",
+          "native_fault": "Un défaut natif explicitement associé est actif ; sa cause doit être examinée",
+          "fault_unmapped": "L'état de défaut ne correspond à aucune valeur explicite de défaut ou d'absence de défaut",
+          "pump_not_configured": "Aucune source de marche de pompe configurée ; diagnostic actif indisponible",
+          "mode_idle": "L'équipement est dans un mode au repos explicitement associé",
+          "mode_excluded": "Mode exclu, par exemple dégivrage ; diagnostic suspendu",
+          "mode_unmapped": "Mode de fonctionnement non associé explicitement",
+          "pump_off": "Pompe arrêtée ; diagnostic actif du débit suspendu",
+          "pump_unmapped": "L'état de pompe ne confirme ni la marche ni l'arrêt",
+          "pump_speed_invalid": "Vitesse de pompe ou unité en pourcentage invalide",
+          "flow_out_of_order": "Rapport de débit reçu dans un ordre chronologique incohérent",
+          "flow_changed_without_report": "Débit modifié sans nouvelle date de rapport",
+          "flow_invalid": "Valeur de débit ou unité volumique invalide",
+          "awaiting_post_restart_reports": "Attente de nouveaux rapports après le redémarrage",
+          "startup_grace": "Attente d'une circulation stable après démarrage ou changement de contexte",
+          "absolute_low_flow": "Débit durablement inférieur au minimum configuré pour l'installation",
+          "relative_flow_decline": "Baisse durable par rapport à la référence saine confirmée",
+          "baseline_context_mismatch": "Mode ou vitesse de pompe non comparable à la référence fixe",
+          "recovery_pending": "Accumulation de mesures saines ; récupération non encore confirmée",
+          "incident_pending_revalidation": "L'incident existant exige une nouvelle confirmation",
+          "recovery_hysteresis": "Le débit n'a pas franchi la marge de récupération",
+          "calibration_sampling": "Collecte de mesures admissibles après confirmation d'un étalonnage sain",
+          "calibration_complete": "Étalonnage sain terminé ; référence fixe acceptée",
+          "calibration_cancelled_by_cleaning": "Nettoyage enregistré : étalonnage inachevé annulé ; confirmez à nouveau un fonctionnement sain pour le relancer",
+          "absolute_low_pending": "Débit sous le minimum, mais durée de persistance non atteinte",
+          "relative_decline_pending": "Durée de persistance de la baisse relative non atteinte",
+          "baseline_unconfirmed": "Aucune référence saine confirmée ; la surveillance du minimum reste possible",
+          "healthy": "Les mesures comparables satisfont les critères sains configurés"
+        }
+      },
+      "current_flow": {"name": "Débit actuel"},
+      "reference_flow": {"name": "Débit de référence"},
+      "minimum_flow": {"name": "Débit minimum"},
+      "decline": {"name": "Baisse"},
+      "telemetry_updated": {"name": "Télémétrie mise à jour"},
+      "last_cleaned": {"name": "Dernier nettoyage"},
+      "email_status": {
+        "name": "État des emails",
+        "state": {
+          "disabled": "Emails désactivés",
+          "ready": "Prêt",
+          "pending": "En attente",
+          "retry": "En attente d'une nouvelle tentative",
+          "sending": "Envoi en cours",
+          "accepted": "Action SMTP terminée, réception non confirmée",
+          "failed": "Échec",
+          "unknown": "Résultat inconnu ; aucun renvoi automatique",
+          "storage_error": "Erreur de stockage ; résultat d'envoi non enregistrable de façon sûre"
+        },
+        "state_attributes": {"recipients": {"name": "Résultats par destinataire"}}
+      },
+      "recipient_status": {
+        "name": "Email : {recipient}",
+        "state": {
+          "disabled": "Emails désactivés",
+          "ready": "Prêt",
+          "pending": "En attente",
+          "retry": "En attente d'une nouvelle tentative",
+          "sending": "Envoi en cours",
+          "accepted": "Action SMTP terminée, réception non confirmée",
+          "failed": "Échec",
+          "unknown": "Résultat inconnu ; aucun renvoi automatique",
+          "storage_error": "Erreur de stockage"
+        },
+        "state_attributes": {
+          "status": {"name": "Statut d'envoi"},
+          "attempts": {"name": "Tentatives"},
+          "updated_at": {"name": "Statut mis à jour"},
+          "next_attempt_at": {"name": "Prochaine tentative"},
+          "accepted_at": {"name": "Date de fin de l'action SMTP"},
+          "error": {"name": "Code d'erreur anonymisé"},
+          "kind": {"name": "Type de notification"},
+          "key": {"name": "Clé de notification"}
+        }
+      }
+    },
+    "switch": {
+      "emails_enabled": {"name": "Activer les emails"}
+    },
+    "button": {
+      "acknowledge": {"name": "Acquitter"},
+      "snooze": {"name": "Suspendre pendant 24 h"},
+      "record_cleaning": {"name": "Enregistrer un nettoyage"},
+      "confirm_calibration": {"name": "Je confirme un fonctionnement sain : étalonner"},
+      "test_email": {"name": "Envoyer un email de test"}
+    }
+  },
+  "exceptions": {
+    "entry_unavailable": {"message": "Ce moniteur Viessmann Guard n'est pas chargé. Chargez l'intégration avant d'utiliser cette action."},
+    "emails_disabled": {"message": "Les emails sont désactivés, tests compris. Activez-les délibérément avant de demander un test."},
+    "required_recipient": {"message": "Sélectionnez au moins un destinataire SMTP natif valide avant d'activer ou de tester les emails."},
+    "invalid_smtp_recipient": {"message": "Un destinataire sélectionné n'est pas une entité SMTP native activée avec une sous-entrée valide."},
+    "too_many_recipients": {"message": "Sélectionnez au maximum 20 entités de destinataires SMTP."},
+    "duplicate_recipient": {"message": "Deux entités sélectionnées désignent le même destinataire SMTP. N'en conservez qu'une."},
+    "smtp_error": {"message": "L'action SMTP a échoué pour au moins un destinataire. Consultez les résultats individuels ; un destinataire déjà traité avec succès ne nécessite pas forcément un nouvel envoi."},
+    "confirmation_required": {"message": "L'étalonnage sain exige confirmed: true après vérification indépendante d'un fonctionnement sain et comparable."}
+  },
+  "services": {
+    "acknowledge": {
+      "name": "Acquitter l'incident",
+      "description": "Marquer l'incident comme vu, sans le résoudre ni piloter la PAC.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."}
+      }
+    },
+    "snooze": {
+      "name": "Suspendre les notifications",
+      "description": "Suspendre temporairement les notifications. L'expiration n'est pas une récupération et ne change pas la référence.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."},
+        "hours": {"name": "Heures", "description": "Durée de suspension de 1 à 168 heures. Le bouton du tableau de bord utilise 24 heures."}
+      }
+    },
+    "record_cleaning": {
+      "name": "Enregistrer un nettoyage effectué",
+      "description": "Conserver une date de maintenance et annuler l'étalonnage inachevé, sans prouver la récupération, effacer un incident ou remplacer la référence acceptée.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."}
+      }
+    },
+    "confirm_calibration": {
+      "name": "Confirmer un étalonnage sain",
+      "description": "Autoriser explicitement une référence fixe à partir de nouvelles observations saines, fraîches et comparables. Un nettoyage enregistré ne suffit pas.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."},
+        "confirmed": {"name": "Fonctionnement sain confirmé", "description": "Doit être vrai. Confirmez indépendamment le bon état de l'équipement dans des conditions comparables."}
+      }
+    },
+    "test_email": {
+      "name": "Envoyer un email de test",
+      "description": "Demander un test pour les destinataires configurés, uniquement si les emails sont activés. La fin de l'action SMTP ne garantit pas la réception.",
+      "fields": {
+        "entry_id": {"name": "Moniteur", "description": "L'entrée de configuration Viessmann Guard."}
+      }
+    }
+  }
+}
