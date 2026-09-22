@@ -83,6 +83,7 @@ class GuardRuntime:
         self.unsubscribers: list[Callable[[], None]] = []
         self._evaluate_task: asyncio.Task | None = None
         self._delivery_task: asyncio.Task | None = None
+        self._action_tasks: set[asyncio.Task[Any]] = set()
         self._lock = asyncio.Lock()
         self._save_lock = asyncio.Lock()
         self.stopped = False
@@ -376,12 +377,26 @@ class GuardRuntime:
             await self.set_emails(updated["emails_enabled"])
 
     async def action(self, action: str, hours: float = 24, confirmed: bool = False) -> None:
+        task = asyncio.current_task()
+        if task is not None:
+            self._action_tasks.add(task)
+        try:
+            await self._action(action, hours, confirmed)
+        finally:
+            if task is not None:
+                self._action_tasks.discard(task)
+
+    async def _action(self, action: str, hours: float, confirmed: bool) -> None:
         if self.stopped:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="entry_unavailable"
             )
         now = dt_util.utcnow().timestamp()
         await self.evaluate(now)
+        if self.stopped:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_unavailable"
+            )
         try:
             if action == "test_email":
                 if not self.config["emails_enabled"]:
@@ -584,10 +599,14 @@ class GuardRuntime:
         for unsubscribe in self.unsubscribers:
             unsubscribe()
         self.unsubscribers.clear()
-        for task in (self._evaluate_task, self._delivery_task):
-            if task is not None and not task.done():
-                task.cancel()
-        pending = [task for task in (self._evaluate_task, self._delivery_task) if task is not None]
+        current = asyncio.current_task()
+        pending = {
+            task
+            for task in (self._evaluate_task, self._delivery_task, *self._action_tasks)
+            if task is not None and task is not current and not task.done()
+        }
+        for task in pending:
+            task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
         await self.save()

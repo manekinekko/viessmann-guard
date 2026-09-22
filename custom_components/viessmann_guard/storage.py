@@ -8,7 +8,7 @@ from homeassistant.helpers.storage import Store
 
 class GuardStore(Store[dict[str, Any]]):
     async def _async_migrate_func(self, old_major_version, old_minor_version, old_data):
-        if old_major_version == 1 and isinstance(old_data, dict):
+        if old_major_version == 1 and old_minor_version == 1 and isinstance(old_data, dict):
             # Version 1 is the initial public schema. Future migrations belong here.
             return old_data
         raise ValueError("Unsupported Viessmann Guard storage version; restore a compatible backup")

@@ -691,3 +691,39 @@ async def test_options_off_applies_even_if_saved_recipient_was_removed(hass, sou
     assert flow["errors"] == {"recipients": "invalid_smtp_recipient"}
     assert entry.options["emails_enabled"] is False
     assert entry.runtime_data.config["emails_enabled"] is False
+
+
+@pytest.mark.parametrize("major,minor", [(0, 1), (1, 2), (2, 1)])
+async def test_unsupported_store_versions_are_rejected(hass, major, minor):
+    from custom_components.viessmann_guard.storage import GuardStore
+
+    store = GuardStore(hass, 1, "synthetic_storage")
+    with pytest.raises(ValueError, match="Unsupported"):
+        await store._async_migrate_func(major, minor, {})
+
+
+async def test_unload_cancels_manual_dispatch_and_remaining_recipients(hass, source_config):
+    _, first = smtp_recipient(hass)
+    _, second = smtp_recipient(hass, "second@example.invalid", "Second")
+    config = {**source_config, "emails_enabled": True, "recipients": [first, second]}
+    entry = await setup_guard(hass, config)
+    runtime = entry.runtime_data
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls = []
+
+    async def transport(call):
+        calls.append(call.data["entity_id"])
+        started.set()
+        await release.wait()
+
+    hass.services.async_register("smtp", "send_message", transport)
+    sending = asyncio.create_task(runtime.action("test_email"))
+    await started.wait()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    with pytest.raises(asyncio.CancelledError):
+        await sending
+    release.set()
+    await hass.async_block_till_done()
+    assert calls == [first]
+    assert runtime.stopped and not runtime._action_tasks
