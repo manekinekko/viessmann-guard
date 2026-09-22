@@ -5,9 +5,9 @@
   "config_flow": true,
   "dependencies": ["persistent_notification"],
   "documentation": "https://github.com/manekinekko/viessmann-guard",
-  "integration_type": "helper",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/manekinekko/viessmann-guard/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

@@ -9,6 +9,7 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import (
     MAX_RECIPIENTS,
+    NUMERIC_RULES,
     PRESSURE_UNITS,
     PRIVATE_NAME_PARTS,
     REQUIRED_ROLES,
@@ -63,6 +64,15 @@ def validate_recipients(hass: HomeAssistant, recipients: list[str]) -> list[str]
 
 def validate_sources(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
+    name = data.get("name")
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or len(name) > 60
+        or "\r" in name
+        or "\n" in name
+    ):
+        errors["name"] = "invalid_name"
     devices = data.get("device_ids", [])
     if not devices or any(dr.async_get(hass).async_get(d) is None for d in devices):
         errors["device_ids"] = "invalid_device"
@@ -119,8 +129,36 @@ def validate_sources(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str
     return errors
 
 
+def _valid_number(value: Any, minimum: float, maximum: float, *, integer=False) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and minimum <= value <= maximum
+        and math.isfinite(value)
+        and (not integer or float(value).is_integer())
+    )
+
+
+def validate_emails(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, str]:
+    errors = {}
+    if not _valid_number(data.get("reminder_hours"), 1, 720):
+        errors["reminder_hours"] = "invalid_number"
+    try:
+        validate_recipients(hass, data["recipients"])
+        if data["emails_enabled"] and not data["recipients"]:
+            raise ValueError("required_recipient")
+    except ValueError as err:
+        errors["recipients"] = str(err)
+    return errors
+
+
 def validate_rules(data: dict[str, Any]) -> dict[str, str]:
     errors = {}
+    if not _valid_number(data.get("min_flow_l_min"), 0.001, 100000):
+        errors["min_flow_l_min"] = "invalid_number"
+    for key, (_, minimum, maximum) in NUMERIC_RULES.items():
+        if not _valid_number(data.get(key), minimum, maximum, integer=key == "calibration_samples"):
+            errors[key] = "invalid_number"
     if not data.get("running_modes"):
         errors["running_modes"] = "required_modes"
     groups = [set(data.get(key, [])) for key in ("running_modes", "idle_modes", "excluded_modes")]
@@ -136,6 +174,8 @@ def validate_rules(data: dict[str, Any]) -> dict[str, str]:
         not data.get("fault_values") or not data.get("fault_clear_values")
     ):
         errors["fault_values"] = "required_fault_mapping"
-    if float(data["hysteresis_pct"]) >= float(data["relative_drop_pct"]):
+    if not {"hysteresis_pct", "relative_drop_pct"}.intersection(errors) and (
+        data["hysteresis_pct"] >= data["relative_drop_pct"]
+    ):
         errors["hysteresis_pct"] = "invalid_hysteresis"
     return errors

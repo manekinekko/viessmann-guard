@@ -1,6 +1,5 @@
 """Guided local configuration. No Viessmann or SMTP connection is made here."""
 
-import math
 from typing import Any
 
 import voluptuous as vol
@@ -17,18 +16,12 @@ from .const import (
     REQUIRED_ROLES,
     SOURCE_ROLES,
 )
-from .validation import validate_recipients, validate_rules, validate_sources
-
-
-def finite_number(value: float) -> float:
-    if not math.isfinite(value):
-        raise vol.Invalid("A finite number is required")
-    return value
+from .validation import validate_emails, validate_rules, validate_sources
 
 
 def sources_schema() -> vol.Schema:
     schema: dict[Any, Any] = {
-        vol.Required("name"): vol.All(str, vol.Length(min=1, max=60), vol.Match(r"^[^\r\n]+$")),
+        vol.Required("name"): vol.All(str, vol.Length(min=1, max=60)),
         vol.Required("device_ids"): selector.DeviceSelector({"multiple": True}),
     }
     for role in SOURCE_ROLES:
@@ -42,13 +35,12 @@ def sources_schema() -> vol.Schema:
 def rules_schema() -> vol.Schema:
     schema: dict[Any, Any] = {
         vol.Required("min_flow_l_min"): vol.All(
-            vol.Coerce(float), finite_number, vol.Range(min=0.001, max=100000)
+            vol.Coerce(float), vol.Range(min=0.001, max=100000)
         ),
     }
     for key, (default, minimum, maximum) in NUMERIC_RULES.items():
         schema[vol.Required(key, default=default)] = vol.All(
             vol.Coerce(int if key == "calibration_samples" else float),
-            finite_number,
             vol.Range(min=minimum, max=maximum),
         )
     for key in LIST_SETTINGS:
@@ -78,7 +70,7 @@ def emails_schema() -> vol.Schema:
                 {"filter": [{"domain": "notify", "integration": "smtp"}], "multiple": True}
             ),
             vol.Required("reminder_hours", default=24): vol.All(
-                vol.Coerce(float), finite_number, vol.Range(min=1, max=720)
+                vol.Coerce(float), vol.Range(min=1, max=720)
             ),
             vol.Required("watch_email", default=False): bool,
             vol.Required("language", default="en"): vol.In(["en", "fr"]),
@@ -133,6 +125,7 @@ class GuardFlow(ConfigFlow, domain=DOMAIN):
             errors = validate_rules({**self.pending, **user_input})
             if not errors:
                 self.pending.update(user_input)
+                self.pending["calibration_samples"] = int(user_input["calibration_samples"])
                 return await self.async_step_emails()
         return self.async_show_form(
             step_id="rules",
@@ -143,12 +136,7 @@ class GuardFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_emails(self, user_input=None) -> ConfigFlowResult:
         errors = {}
         if user_input is not None:
-            try:
-                validate_recipients(self.hass, user_input["recipients"])
-                if user_input["emails_enabled"] and not user_input["recipients"]:
-                    raise ValueError("required_recipient")
-            except ValueError as err:
-                errors["recipients"] = str(err)
+            errors = validate_emails(self.hass, user_input)
             if not errors:
                 self.pending.update(user_input)
                 return await self.async_step_report()
@@ -199,17 +187,14 @@ class GuardOptionsFlow(OptionsFlow):
                 errors = validate_sources(self.hass, merged)
             elif step == "rules":
                 errors = validate_rules(merged)
+                if not errors:
+                    merged["calibration_samples"] = int(merged["calibration_samples"])
             elif step == "report":
                 from .telemetry import validate_report_entities
 
                 errors = validate_report_entities(self.hass, merged)
             else:
-                try:
-                    validate_recipients(self.hass, merged["recipients"])
-                    if merged["emails_enabled"] and not merged["recipients"]:
-                        raise ValueError("required_recipient")
-                except ValueError as err:
-                    errors["recipients"] = str(err)
+                errors = validate_emails(self.hass, merged)
             if not errors:
                 # Invalidate dispatch synchronously before options persistence/reload.
                 runtime = getattr(self.config_entry, "runtime_data", None)

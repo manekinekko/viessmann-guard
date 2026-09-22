@@ -112,6 +112,8 @@
       }
     },
     "error": {
+      "invalid_name": "Utilisez un nom non vide de 60 caractères maximum, sans retour à la ligne.",
+      "invalid_number": "Saisissez un nombre fini respectant les limites affichées. Le nombre d'échantillons doit être entier.",
       "invalid_device": "Sélectionnez au moins un appareil existant.",
       "required_source": "Sélectionnez une entité pour cette source obligatoire.",
       "invalid_source": "Choisissez une source activée sur un appareil sélectionné, dans un domaine pris en charge et hors de Viessmann Guard.",
@@ -252,6 +254,8 @@
       }
     },
     "error": {
+      "invalid_name": "Utilisez un nom non vide de 60 caractères maximum, sans retour à la ligne.",
+      "invalid_number": "Saisissez un nombre fini respectant les limites affichées. Le nombre d'échantillons doit être entier.",
       "invalid_device": "Sélectionnez au moins un appareil existant.",
       "required_source": "Sélectionnez une entité pour cette source obligatoire.",
       "invalid_source": "Choisissez une source activée sur un appareil sélectionné, dans un domaine pris en charge et hors de Viessmann Guard.",

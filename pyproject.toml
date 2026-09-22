@@ -1,6 +1,6 @@
 [project]
 name = "viessmann-guard"
-version = "0.1.0"
+version = "0.1.1"
 description = "Read-only hydraulic flow monitoring for existing Home Assistant entities"
 requires-python = ">=3.14.2"
 license = "MIT"

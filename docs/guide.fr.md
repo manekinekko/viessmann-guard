@@ -42,6 +42,13 @@ avant une installation ou une mise à jour.
 
 ## 1. Choisir les sources
 
+Si la version 0.1.0 n'apparaît pas dans **Ajouter une intégration**, ou si son
+formulaire échoue, installez la version 0.1.1 ou ultérieure. Elle corrige la
+catégorie du catalogue et la sérialisation des formulaires. Après la copie,
+redémarrez Home Assistant au moment choisi, puis actualisez le navigateur.
+Le message générique évoquant la « dernière version » ne justifie pas à lui seul
+une mise à niveau d'un Home Assistant déjà en version 2026.8.3 ou ultérieure.
+
 Donnez un nom au moniteur et sélectionnez les appareils concernés. Associez les
 entités existantes à leur rôle :
 

@@ -54,6 +54,12 @@ Home Assistant, then add the integration through **Devices & services**.
 Keep a backup of your configuration before installing or updating any custom
 integration.
 
+If version 0.1.0 is missing from **Add integration**, or opening its form fails,
+update to 0.1.1 or newer. That version corrects the integration's catalog category
+and form-schema serialization. After copying an update, restart Home Assistant
+when appropriate and refresh the browser. The generic UI message about the
+"latest version" does not by itself mean HA 2026.8.3 or newer needs upgrading.
+
 ## Configure
 
 The UI walks through four steps. You can revisit them in the integration's

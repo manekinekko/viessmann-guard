@@ -112,6 +112,8 @@
       }
     },
     "error": {
+      "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
+      "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
       "invalid_device": "Select at least one existing equipment device.",
       "required_source": "Select an entity for this required source.",
       "invalid_source": "Choose an enabled source on a selected device, in a supported domain, and not from Viessmann Guard.",
@@ -252,6 +254,8 @@
       }
     },
     "error": {
+      "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
+      "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
       "invalid_device": "Select at least one existing equipment device.",
       "required_source": "Select an entity for this required source.",
       "invalid_source": "Choose an enabled source on a selected device, in a supported domain, and not from Viessmann Guard.",
