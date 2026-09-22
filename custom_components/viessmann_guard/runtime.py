@@ -317,11 +317,15 @@ class GuardRuntime:
                 self.hass,
                 f"{result.state}: {describe_reason(result.reason, self.config['language'])}\n\n"
                 + (
-                    "Filtre encrassé possible, sans certitude. Faire contrôler le circuit, "
-                    "les filtres, le circulateur, les vannes et les capteurs. Ceci n'est pas un dispositif de sécurité."
+                    "Filtre encrassé possible, sans certitude. Faire contrôler rapidement le circuit "
+                    "et les filtres par un professionnel ; nettoyage selon la procédure du fabricant "
+                    "si l'encrassement est confirmé. Vérifier aussi le circulateur, les vannes, l'air "
+                    "et les capteurs. Ceci n'est pas un dispositif de sécurité."
                     if self.config["language"] == "fr"
-                    else "A dirty filter is one possible cause, not a diagnosis. Have the circuit, "
-                    "filters, circulator, valves and sensors inspected. This is not a safety device."
+                    else "A dirty filter is one possible cause, not a diagnosis. Arrange prompt professional "
+                    "inspection of the circuit and filters, with cleaning per the manufacturer's procedure "
+                    "if fouling is confirmed. Also check the circulator, valves, air and sensors. "
+                    "This is not a safety device."
                 ),
                 title=self.config["name"],
                 notification_id=f"{DOMAIN}_{self.entry.entry_id}_incident",

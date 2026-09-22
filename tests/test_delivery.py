@@ -67,18 +67,18 @@ async def test_success_is_persisted_before_dispatch_and_not_sent_twice():
 
 
 @pytest.mark.asyncio
-async def test_notify_entity_targets_are_directly_addressable_without_raw_email_addresses():
+async def test_notify_entity_targets_have_opaque_keys_and_direct_lookup_helper():
     targets = ["notify.synthetic_smtp_technician", "notify.synthetic_smtp_owner"]
     send = AsyncMock()
     delivery = make_delivery(send=send)
     delivery.configure(True, targets)
     delivery.queue("event", "test", 0)
     await delivery.dispatch(0)
-    assert set(delivery.statuses) == set(targets)
-    assert all(delivery.statuses[target]["status"] == "accepted" for target in targets)
-    assert delivery.status_for(targets[0]) == delivery.statuses[targets[0]]
+    assert set(delivery.statuses) == {target_id(target) for target in targets}
+    assert all(delivery.statuses[target_id(target)]["status"] == "accepted" for target in targets)
+    assert delivery.status_for(targets[0]) == delivery.statuses[target_id(targets[0])]
     delivery.status_for(targets[0]).clear()
-    assert delivery.statuses[targets[0]]["status"] == "accepted"
+    assert delivery.statuses[target_id(targets[0])]["status"] == "accepted"
     assert delivery.status_for("notify.unconfigured") == {}
     assert [call.args[0] for call in send.await_args_list] == targets
     assert "@" not in json.dumps(delivery.export())
@@ -87,12 +87,12 @@ async def test_notify_entity_targets_are_directly_addressable_without_raw_email_
     restored.configure(True, targets)
     restored.queue("event", "test", 15)
     await restored.dispatch(15)
-    assert set(restored.statuses) == set(targets)
+    assert set(restored.statuses) == {target_id(target) for target in targets}
     restored_send.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_legacy_hashed_notify_entity_keys_migrate_without_resending_acceptance():
+async def test_legacy_notify_entity_keys_migrate_to_hashes_without_resending_acceptance():
     target = "notify.synthetic_smtp_technician"
     delivery = make_delivery()
     delivery.configure(True, [target])
@@ -100,15 +100,16 @@ async def test_legacy_hashed_notify_entity_keys_migrate_without_resending_accept
     await delivery.dispatch(0)
     exported = delivery.export()
     for field in ("statuses", "completed"):
-        exported[field][target_id(target)] = exported[field].pop(target)
+        exported[field][target] = exported[field].pop(target_id(target))
     send = AsyncMock()
     restored = make_delivery(send=send, restored=exported)
+    assert restored.status_for(target)["status"] == "accepted"
     restored.configure(True, [target])
     restored.queue("event", "urgent", 15)
     await restored.dispatch(15)
-    assert restored.statuses[target]["status"] == "accepted"
-    assert target_id(target) not in restored.statuses
-    assert target_id(target) not in restored.export()["completed"]
+    assert restored.statuses[target_id(target)]["status"] == "accepted"
+    assert target not in restored.statuses
+    assert target not in restored.export()["completed"]
     send.assert_not_awaited()
 
 
@@ -122,17 +123,17 @@ async def test_separate_manual_test_queue_preserves_incident_retry_and_entity_st
         delivery.configure(True, [target])
     incident.queue("incident-1", "urgent", 0)
     await incident.dispatch(0)
-    retry = incident.statuses[target]
+    retry = incident.status_for(target)
     assert retry["status"] == "retry"
     manual.queue("manual-test-1", "test", 15)
     await manual.dispatch(15)
-    assert manual.statuses[target]["status"] == "accepted"
-    assert incident.statuses[target] == retry
-    assert incident.statuses[target]["next_attempt_at"] == 60
-    assert manual.export()["statuses"][target]["key"] == "manual-test-1"
-    assert incident.export()["statuses"][target]["key"] == "incident-1"
+    assert manual.status_for(target)["status"] == "accepted"
+    assert incident.status_for(target) == retry
+    assert incident.status_for(target)["next_attempt_at"] == 60
+    assert manual.export()["statuses"][target_id(target)]["key"] == "manual-test-1"
+    assert incident.export()["statuses"][target_id(target)]["key"] == "incident-1"
     await incident.dispatch(60)
-    assert incident.statuses[target]["status"] == "accepted"
+    assert incident.status_for(target)["status"] == "accepted"
     assert [call.args[1] for call in send.await_args_list] == ["urgent", "test", "urgent"]
 
 

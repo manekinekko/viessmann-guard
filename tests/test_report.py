@@ -281,6 +281,10 @@ def test_every_report_is_cautious_and_provides_professional_alternatives(snapsho
                 assert "sensor" in content
                 assert "qualified professional" in content
                 assert "manufacturer" in content
+                assert "inspected promptly" in content
+                assert "if fouling is confirmed" in content
+                assert "filters cleaned" in content
+                assert "not a safety device" in content
                 assert "filter is clogged" not in content
                 assert "filter is blocked" not in content
                 assert "smtp" in content
@@ -293,6 +297,10 @@ def test_every_report_is_cautious_and_provides_professional_alternatives(snapsho
                 assert "capteur" in content
                 assert "professionnel qualifié" in content
                 assert "fabricant" in content
+                assert "contrôler rapidement" in content
+                assert "si l'encrassement est confirmé" in content
+                assert "nettoyer les filtres" in content
+                assert "ni un dispositif de sécurité" in content
                 assert "le filtre est colmaté" not in content
 
 

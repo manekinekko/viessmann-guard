@@ -63,14 +63,15 @@ _COPY = {
             "closed or restricted valves, trapped air, or incorrect or stale sensor data."
         ),
         "advice_text": (
-            "Ask a qualified professional to assess the pump, valves, air and sensors and, "
-            "if appropriate, inspect the filter following the equipment manufacturer's "
-            "maintenance and safety procedures. Do not open pressurized equipment or bypass "
-            "safety protections."
+            "For an active anomaly, have the filters and hydraulic circuit inspected promptly "
+            "by a qualified professional. If fouling is confirmed, have the filters cleaned "
+            "according to the manufacturer's maintenance and safety procedures. Also assess "
+            "the pump, valves, trapped air and sensors. Do not open pressurized equipment "
+            "or bypass safety protections."
         ),
         "limitations_text": (
             "This is a read-only assessment of the supplied telemetry, not a diagnosis or "
-            "proof of a blocked filter. Missing or stale measurements reduce confidence. "
+            "proof of a blocked filter. This is not a safety device. Missing or stale measurements reduce confidence. "
             "Configured thresholds are monitoring settings, not manufacturer safety limits. "
             "No equipment settings or controls are changed. An email accepted by SMTP is "
             "not proof that it reached the recipient."
@@ -132,14 +133,15 @@ _COPY = {
             "dans le circuit, ou des données de capteur incorrectes ou périmées."
         ),
         "advice_text": (
-            "Demandez à un professionnel qualifié d'évaluer la pompe, les vannes, l'air "
-            "et les capteurs et, si nécessaire, d'inspecter le filtre selon les procédures "
-            "d'entretien et de sécurité du fabricant. N'ouvrez pas un équipement sous "
-            "pression et ne contournez pas les protections de sécurité."
+            "En cas d'anomalie active, faites contrôler rapidement les filtres et le circuit "
+            "hydraulique par un professionnel qualifié. Si l'encrassement est confirmé, faites "
+            "nettoyer les filtres selon les procédures d'entretien et de sécurité du fabricant. "
+            "Faites aussi vérifier le circulateur, les vannes, l'air et les capteurs. N'ouvrez "
+            "pas un équipement sous pression et ne contournez pas les protections de sécurité."
         ),
         "limitations_text": (
             "Cette évaluation en lecture seule repose sur la télémétrie fournie. Ce n'est "
-            "ni un diagnostic ni une preuve de colmatage du filtre. Les mesures manquantes "
+            "ni un diagnostic ni une preuve de colmatage du filtre, ni un dispositif de sécurité. Les mesures manquantes "
             "ou périmées réduisent la confiance. Les seuils configurés sont des paramètres "
             "de surveillance, pas des limites de sécurité du fabricant. Aucun réglage ni "
             "aucune commande de l'équipement n'est modifié. Un courriel accepté par SMTP "

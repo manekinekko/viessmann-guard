@@ -48,8 +48,6 @@ _ERROR_CODES = {
 
 
 def _target_key(target: str) -> str:
-    if re.fullmatch(r"notify\.[a-z0-9_]+", target):
-        return target
     return sha256(target.casefold().encode()).hexdigest()
 
 
@@ -140,11 +138,10 @@ def _restore_record(value: Any) -> dict[str, Any]:
 class Delivery:
     """Keep one current event, with bounded terminal history for deduplication.
 
-    Notify entity IDs remain addressable in exported state; direct addresses are
-    hashed and exist solely in the live configuration. Adding a recipient does
-    not replay an old event; queue the freshly validated event explicitly,
-    including after restart. The latest 32 terminal keys per target are retained,
-    not an unlimited archive of historical notifications.
+    Status keys are opaque target hashes; status_for() accepts the configured
+    target. Adding a recipient does not replay an old event; queue the freshly
+    validated event explicitly, including after restart. The latest 32 terminal
+    keys per target are retained, not an unlimited archive of notifications.
     """
 
     def __init__(
@@ -234,7 +231,7 @@ class Delivery:
 
     @property
     def statuses(self) -> dict[str, dict[str, Any]]:
-        """Return detached statuses keyed by notify entity ID (or address hash)."""
+        """Return detached statuses keyed by opaque SHA-256 target IDs."""
         return deepcopy(self._records)
 
     def status_for(self, target: str) -> dict[str, Any]:
@@ -242,7 +239,7 @@ class Delivery:
         target = target.strip()
         record = self._records.get(_target_key(target))
         if record is None:
-            record = self._records.get(sha256(target.casefold().encode()).hexdigest())
+            record = self._records.get(target)
         return deepcopy(record) if record is not None else {}
 
     def export(self) -> dict[str, Any]:
@@ -285,11 +282,9 @@ class Delivery:
         previous_enabled = self._enabled
         self._enabled = enabled
         for target_id, target in targets.items():
-            legacy_id = sha256(target.casefold().encode()).hexdigest()
-            if legacy_id != target_id:
-                for records in (self._records, self._completed):
-                    if legacy_id in records:
-                        records.setdefault(target_id, records.pop(legacy_id))
+            for records in (self._records, self._completed):
+                if target in records:
+                    records.setdefault(target_id, records.pop(target))
         for target_id in set(self._records) | set(self._completed) | set(self._targets):
             if target_id not in targets:
                 self._records.pop(target_id, None)
