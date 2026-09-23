@@ -272,6 +272,91 @@ heat-pump hardware.
 
 ## Email behavior and limits
 
+### Incident evidence and the five-day view
+
+Version 0.4.0 adds the same evidence-rich layout to emails and local reports:
+current flow and its HA report timestamp, next to an **immutable capture at the
+alert decision**. An opening watch alert and a later urgent escalation have
+separate captures. Reminders retain the flow that triggered the displayed alert
+level, not the latest reading. The recorded rule, threshold/reference, observed
+duration and window, decision time, opening time and any escalation time remain
+distinct. A recovery message identifies confirmed stable recovery and retains
+the closed incident's evidence. A native flow fault can have no usable flow
+measurement; that value is unavailable, not zero.
+
+Existing incidents from older versions keep their ID, acknowledgement, snooze
+and delivery state. Their exact trigger measurement is **unknown**, even if a
+nearby historical value exists. An upgrade never substitutes current flow,
+reopens the incident or sends an upgrade notification.
+
+The chart covers **five calendar days in HA's configured timezone**, including
+today marked partial. Calendar boundaries honor daylight-saving changes.
+The unit is consistently **L/min**, including converted source values. Red HTML
+bars share one scale starting at zero; numbers remain readable with images
+disabled. There are no remote images, tracking pixels, JavaScript or attachments.
+
+History is collected **locally from this version onward**, independently of
+Recorder. No extra setup is required. Guard takes the first evaluation in each
+UTC minute, from the existing 15-second timer or source events. Only fresh
+flow, an explicitly configured running mode and confirmed running circulation
+are eligible, after startup grace. When pump speed is configured, it must be
+fresh and valid. Repeated values may be sampled while their last HA report is
+still within the configured freshness limit; they are not new persistence
+evidence. Missing, stale, idle, defrost and otherwise excluded observations
+remain gaps. There is no interpolation or catch-up after downtime.
+
+Daily medians and minima describe these **regularly sampled observations**, not
+every raw source reading. Bursts of state changes cannot contribute extra
+samples within a minute. The displayed numerator counts comparable sampled
+minute slots; the denominator counts elapsed calendar-minute slots, including
+idle/excluded periods. This is **not measured continuous operating time**.
+At least two samples in each compared day are needed for the percentage.
+Sparse coverage is not proof of a representative day. The percentage compares
+the first and last usable displayed daily medians, with both dates named, and
+is unavailable when the first median is zero. Missing days preclude a five-day
+decline conclusion. Consecutive decreases mean decreases in the **sampled daily
+medians**, never that every individual reading fell.
+The consecutive five-day label additionally requires observations in every
+elapsed minute slot with no unknown/stale context gaps. Otherwise the report
+explicitly says evidence is insufficient for that conclusion, even when a
+first/last sampled-median percentage can be displayed.
+
+Comparison uses the captured alert's mode, circulation state and, when known,
+pump speed within the configured tolerance. Without a capture, a fresh eligible
+current context is used. Without measured speed, the report explicitly limits
+comparability to mode and running state, not identical hydraulic conditions.
+Source/rule changes discard incompatible history and prevent comparison with
+an old incident context; registry-backed entity renames retain identity.
+Heating, DHW, defrost and different known speed ranges are not blended.
+
+There is **no Recorder backfill**. HA 2026.8.3 and 2026.9.3 Recorder history
+records state changes and a last-reported endpoint, not the complete sequence
+of unchanged reports needed to reconstruct freshness and gaps honestly.
+Recorder can be absent, excluded or unavailable without delaying an alert.
+The separate native dashboard history graph still needs Recorder.
+Allow five calendar days to accumulate this new view; empty early days are
+normal, not installation failures.
+
+Local records are capped at six days and 8,641 compact samples per instance.
+HA's atomic Store persists them about every five minutes and on unload;
+incident/delivery changes still save immediately. A crash can lose recent
+unsaved samples, never create replacement observations. The last 120 reported
+flow points remain separately listed in the appendix for compatibility and
+are **not** used to reconstruct the five-day chart.
+
+**Upgrade/rollback:** 0.4.0 writes storage payload/engine schema 2 while accepting
+schema 1 on upgrade. Before first loading it, keep a normal private Home Assistant
+backup as well as the previous component folder. Replacing files before the
+first restart has not migrated runtime state. After 0.4.0 has saved schema 2,
+0.3.0 cannot read that state: rolling back needs the compatible pre-upgrade HA
+backup, not just the old Python files. Do not edit `.storage` manually.
+
+This is diagnostic context, not a new alert rule or automatic calibration.
+Persistent low flow or declining comparable medians may justify professional
+inspection of filters and the hydraulic circuit. Clean only when fouling is
+confirmed and according to the manufacturer. Circulator problems, valves,
+air, sensors and operating conditions remain alternative causes.
+
 ### Interface language versus email language
 
 English is the canonical/fallback interface language. Native HA labels, forms,

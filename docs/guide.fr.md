@@ -276,6 +276,76 @@ réactivation ne rejoue pas un ancien stock d'alertes : l'incident courant doit
 
 ### Contenu des rapports
 
+Depuis la version 0.4.0, le rapport montre côte à côte le débit actuel et la
+capture **immuable au déclenchement du niveau d'alerte affiché**. L'ouverture
+en surveillance et une éventuelle escalade urgente ont des captures distinctes.
+Les rappels conservent cette capture ; la récupération affiche le retour stable
+confirmé et l'incident clôturé. Les heures de rapport HA, de décision,
+d'ouverture, d'escalade et la durée réellement observée sont distinguées.
+Un défaut natif sans débit exploitable affiche une valeur indisponible, pas zéro.
+Pour un incident antérieur à cette version, le débit exact au déclenchement reste
+inconnu : aucun débit actuel ou historique voisin ne le remplace.
+
+Le graphique couvre **cinq jours calendaires dans le fuseau HA**, aujourd'hui
+étant indiqué partiel, avec prise en compte des changements d'heure. Toutes
+les valeurs sont en L/min, après conversion des unités source. Les barres HTML
+rouges partagent une échelle partant de zéro, sans image distante ni suivi.
+
+La collecte est locale et commence avec cette version, **sans rattrapage
+Recorder**. Le premier contrôle de chaque minute UTC peut fournir un échantillon
+frais admissible, via le minuteur existant de 15 secondes ou les événements
+source. Les rafales de changements ne donnent pas davantage de poids à une
+minute. Une valeur inchangée reste échantillonnable jusqu'à sa limite de fraîcheur,
+sans devenir une nouvelle preuve de persistance. Arrêts, démarrages, dégivrages,
+sources périmées/manquantes et interruptions restent des lacunes.
+Aucun remplissage ni rattrapage après redémarrage n'est effectué.
+
+Médiane et minimum décrivent ces échantillons, pas toutes les mesures brutes.
+La couverture indique les créneaux minute comparables sur les créneaux
+calendaires écoulés, y compris ceux où la PAC ne fonctionne pas. Ce n'est
+**pas une durée continue mesurée**. Il faut au moins deux échantillons dans
+chaque journée comparée ; une faible couverture ne prouve pas une journée
+représentative. Le pourcentage compare les première et dernière médianes
+journalières exploitables affichées, avec leurs dates, et reste indisponible
+si la première médiane vaut zéro. Un jour manquant interdit de conclure à cinq
+jours consécutifs de baisse. Une baisse des médianes ne signifie pas que chaque
+mesure individuelle baisse.
+La conclusion sur cinq jours exige aussi une observation à chaque créneau
+minute écoulé, sans lacune de contexte inconnu ou périmé. Sinon, la preuve
+est indiquée insuffisante, même si un pourcentage entre médianes disponibles
+peut être calculé.
+
+Le mode, l'état de circulation et, si elle est connue, la vitesse avec sa
+tolérance sont comparés au contexte capturé de l'alerte, ou au contexte actuel
+frais en l'absence de capture. Sans vitesse mesurée, cette limite est explicite :
+les conditions hydrauliques ne sont pas garanties identiques. Un changement de
+sources ou de règles invalide cet historique ; un renommage suivi par le registre
+préserve l'identité. Les modes chauffage/ECS et les vitesses incompatibles ne
+sont pas mélangés.
+
+Recorder ne permet pas de reconstituer avec certitude la fréquence des rapports
+inchangés et leur fraîcheur. Son absence n'empêche donc ni ce rapport ni une
+alerte. Le graphique du tableau de bord natif reste, lui, dépendant de Recorder.
+Les jours initiaux vides sont normaux : attendre cinq jours calendaires de collecte.
+La rétention locale est bornée à six jours et 8 641 échantillons compacts par
+instance, sauvegardés environ toutes les cinq minutes et au déchargement.
+Les captures d'incident et changements de livraison sont sauvegardés immédiatement.
+Une panne peut perdre les derniers échantillons non sauvegardés, jamais en créer.
+Les 120 derniers points bruts restent en annexe, sans alimenter ce graphique.
+
+La version 0.4.0 accepte l'ancien stockage et écrit le schéma de données/moteur 2.
+Avant son premier chargement, conserver une sauvegarde HA privée normale en
+plus du dossier précédent du composant. Une simple copie de fichiers sans
+redémarrage ne migre pas encore l'état. Après sauvegarde au schéma 2, un retour
+à 0.3.0 exige la sauvegarde HA compatible d'avant mise à jour, pas seulement les
+anciens fichiers Python. Ne pas modifier `.storage` manuellement.
+
+Ce contexte ne crée pas de nouveau seuil d'alerte et ne calibre jamais une
+référence automatiquement. Une baisse persistante peut justifier une inspection
+professionnelle des filtres et du circuit. Nettoyer seulement si l'encrassement
+est confirmé, conformément au fabricant ; circulateur, vannes, air et capteurs
+restent des causes possibles. Ce n'est pas un dispositif de sécurité.
+
 L'inventaire est limité aux appareils sélectionnés et à certaines catégories de
 mesures. Vous pouvez ajouter des entités explicitement ou en exclure.
 Les entités `number` peuvent être incluses en lecture seule ; leur valeur

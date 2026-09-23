@@ -20,6 +20,67 @@ heat-pump commands. A browser is not part of the monitoring loop.
 Unsupported stored engine versions are rejected explicitly rather than
 silently discarding an existing reference or incident history.
 
+## Captured evidence and calendar history
+
+Payload schema 2 / engine schema 2 accept schema-1 state explicitly. Missing
+legacy `opening`/`escalation` evidence becomes `None`; current flow and old
+120-point trends never supply a synthetic trigger. Initial and urgent-escalation
+captures hold decision and source-report timestamps, canonical flow, rule,
+observed duration/window, threshold/reference, native fault and normalized
+mode/pump/speed context. One most recently closed incident is retained for the
+recovery report. Serialization is detached and captures stay immutable.
+No schema migration changes delivery permission, IDs, queues or entry options.
+HA's Store envelope and config-entry versions are unchanged.
+
+`history.py` observes at most once per UTC minute, on the first normal runtime
+evaluation in that bucket. The existing timer runs every 15 seconds. Each row
+stores observation/report times, eligible flow or a gap, raw normalized
+mode/pump/speed, whether speed was configured, and quality. Fresh repeated
+values can occupy successive slots within the freshness bound, but cannot
+advance the engine's distinct-report evidence counters. No missed bucket is
+filled and startup/restored/stale/excluded observations cannot become evidence.
+Samples are pruned at six days and 8,641 rows; compact array serialization
+avoids repeating field names. Atomic HA Store writes occur about every five
+minutes for samples, immediately for durable engine/delivery changes, and on
+unload. No extra background task or Recorder dependency is created.
+
+The summary uses HA's IANA timezone to establish the last five local dates,
+including today's partial window; UTC bucket cadence survives DST's 23/25-hour
+days. The fixed anchor is the alert-level capture (or current eligible context
+without a capture), never chained speed tolerances between neighboring samples.
+Mode, pump state and optional speed must match. Coverage counts eligible
+comparable sampled minute slots over elapsed wall-clock slots, not continuous
+operation. Medians and minima are exact for that sampled set. At least two
+samples per compared day support a first/last median percentage, with explicit
+dates and a nonzero denominator. Five consecutive sampled daily medians are
+necessary for the consecutive-decline label; missing days prohibit it.
+Coverage and missing speed remain visible limitations, not claims of certainty.
+The five-day consecutive label additionally requires every elapsed minute slot
+to be observed without unknown/stale context gaps; sparse sampled medians alone
+do not qualify. Known idle/excluded/startup intervals remain gaps in flow but
+can account for an observed slot without asserting running time.
+
+Source/rule fingerprint changes clear incompatible local samples; registry UUID
+renames preserve them. Captures retain the original fingerprint so an old
+incident cannot be compared against new-source samples. Summary caching is per
+runtime, minute and context, invalidated on collection. There is no per-recipient
+database query. New telemetry is rendered at actual dispatch, while capture and
+chosen email language retain their existing contracts.
+
+Recorder investigation on both supported HA versions found
+`history.get_significant_states` returns state changes, and
+`Recorder._process_state_changed_event_into_session` updates the previous state's
+`last_reported_ts` endpoint. It does not preserve the full unchanged-report
+cadence needed to infer all historical freshness gaps. Therefore Guard does not
+backfill or query Recorder for this feature. Disabled Recorder, excluded
+entities, limited retention and database errors cannot block urgent mail.
+
+`email_layout.py` applies the approved red inline-table layout to the shared
+SMTP/local report snapshot. The subject, plain text and HTML cover all four
+languages. It contains no client-side code, remote images or CID pipeline.
+The entire allowlisted appendix remains available. Historical sampling adds no
+new detection rule, automatic calibration, device control or SMTP permission.
+
 ## Configuration contract
 
 The initial `user` dispatches to a zero-field `confirm` for one native ViCare

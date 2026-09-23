@@ -85,6 +85,9 @@ Add regression tests for behavior you change. Important boundaries include:
   local parts, duplicate recipients, backoff, and uncertain dispatch results.
 - Persistence, options/switch consistency, removed recipients, and per-recipient
   status reporting.
+- Immutable opening/escalation captures, legacy unknown evidence, recovery
+  context, minute sampling, missing days, DST boundaries, coverage and
+  source/context isolation. Never backfill freshness from a Recorder endpoint.
 
 Use HA fixtures and fake services. Do not ask reviewers to reproduce on their
 own heat pump. Keep tests deterministic and bounded.
@@ -101,6 +104,12 @@ defaults, legacy fallback, per-instance independence and locale changes during
 recipient dispatch/retries. Keep those changes presentation-only: no reload,
 new mail, permission change or replay when only the language changes. Dynamic
 backend UI text follows the HA system language, not the email locale.
+
+`tests/test_evidence.py` exercises the shared red email layout and exposes
+`synthetic_report()` for a local visual preview. Its data are explicitly
+fictional. Check actual rendered HTML at desktop and mobile sizes; do not
+send a real email to test appearance. All four languages and report types
+must keep the same evidence and escaped source values.
 
 The example dashboard must use only native HA cards and the default theme.
 Keep visible button labels, text status explanations, responsive layout, and
