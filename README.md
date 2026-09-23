@@ -320,6 +320,12 @@ The consecutive five-day label additionally requires observations in every
 elapsed minute slot with no unknown/stale context gaps. Otherwise the report
 explicitly says evidence is insufficient for that conclusion, even when a
 first/last sampled-median percentage can be displayed.
+Freshly identified idle/defrost intervals, confirmed stopped circulation and
+known other operating modes account for observed **exclusions**, even when flow
+stops reporting there. They are not unknown gaps and do not require the pump
+to run 24 hours a day. Missing/old mode evidence cannot justify an exclusion.
+Partial-history subjects say so immediately; their available-point percentage
+is confined to the technical appendix, not presented as a proven continuous drop.
 
 Comparison uses the captured alert's mode, circulation state and, when known,
 pump speed within the configured tolerance. Without a capture, a fresh eligible

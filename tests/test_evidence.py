@@ -4,6 +4,7 @@ import json
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from functools import cache
 from html import unescape
 from unittest.mock import AsyncMock, patch
 from zoneinfo import ZoneInfo
@@ -17,7 +18,7 @@ from test_integration import reports, settle, setup_guard
 from test_report import Tags
 
 from custom_components.viessmann_guard.email_layout import _WORDS
-from custom_components.viessmann_guard.engine import Engine, validate_capture
+from custom_components.viessmann_guard.engine import Engine, Measurement, validate_capture
 from custom_components.viessmann_guard.history import (
     MAX_SAMPLES,
     RETENTION_SECONDS,
@@ -81,6 +82,21 @@ def test_fault_capture_rejects_changed_value_with_reused_report_timestamp():
     engine.evaluate(snapshot(10, 30, fault="off"))
     engine.evaluate(snapshot(11, 25, fault="F", flow_at=10))
     assert engine.incident["opening"]["flow"] is None
+
+
+def test_rendered_capture_keeps_fractional_source_and_decision_timestamps():
+    engine = Engine(settings())
+    engine.evaluate(snapshot(1000.25, 5))
+    engine.evaluate(snapshot(1020.75, 4, flow_at=1020.125))
+    capture = engine.incident["opening"]
+    assert capture["duration_s"] == 20.5
+    _, message, html = render_report(
+        {"incident": engine.incident, "incident_capture": capture, "timezone": "UTC"},
+        "urgent",
+    )
+    for content in (message, html):
+        assert "1970-01-01T00:17:00.125000+00:00" in content
+        assert "1970-01-01T00:17:00.750000+00:00" in content
 
 
 def test_legacy_incident_migrates_without_inventing_trigger_or_replaying():
@@ -313,6 +329,18 @@ def test_startup_and_bad_timestamps_are_not_eligible_history():
     assert observation(sample, rules, Engine(rules).evaluate(sample))["quality"] != "eligible"
 
 
+@pytest.mark.parametrize("mode,pump", [("idle", "off"), ("defrost", "on"), ("heat", "off")])
+def test_known_exclusions_account_for_a_slot_even_when_unused_flow_is_stale(mode, pump):
+    sample = snapshot(1000, None, mode=mode, pump=pump, flow_at=100)
+    sample = replace(sample, flow=replace(sample.flow, status="stale"))
+    result = observation(sample, settings(), Engine(settings()).evaluate(sample))
+    assert result["quality"] in {"mode_excluded", "pump_off"}
+    assert result["flow"] is None
+    sample = replace(sample, mode=replace(sample.mode, observed_at=100))
+    result = observation(sample, settings(), Engine(settings()).evaluate(sample))
+    assert result["quality"] not in {"eligible", "mode_excluded", "pump_off"}
+
+
 def test_zero_flow_is_real_not_missing_and_cannot_be_percentage_denominator():
     history = FlowHistory()
     for now in (100000, 100060, 186400, 186460):
@@ -341,13 +369,65 @@ def test_history_age_volume_compact_storage_and_invalid_versions():
             FlowHistory(bad)
 
 
-def synthetic_report():
+@cache
+def nominal_history():
+    today = datetime(2026, 10, 25, tzinfo=ZoneInfo("Europe/Paris"))
+    now = (today + timedelta(hours=14)).timestamp()
+    history = FlowHistory()
+    rules = settings()
+    for day, value in enumerate((24, 21, 18, 16, 13)):
+        start = (today - timedelta(days=4 - day)).timestamp()
+        end = min(now + 1, (today - timedelta(days=3 - day)).timestamp())
+        for stamp in range(int(start), int(end), 60):
+            hour = datetime.fromtimestamp(stamp, ZoneInfo("Europe/Paris")).hour
+            mode = (
+                "idle" if hour < 6 else "dhw" if hour == 7 else "defrost" if hour == 8 else "heat"
+            )
+            sample = snapshot(
+                stamp, value, mode=mode, speed=55, pump="off" if mode == "idle" else "on"
+            )
+            if mode in ("idle", "dhw", "defrost"):
+                sample = replace(sample, flow=Measurement(None, stamp - 1000, "L/min", "stale"))
+            elif stamp == now:
+                sample = replace(sample, flow=Measurement(7.25, stamp - 2, "L/min"))
+            elif stamp % 3600 == 0:
+                sample = replace(sample, flow=Measurement(value - 1, stamp, "L/min"))
+            history.add(sample, rules, Engine(rules).evaluate(sample))
+    return history.export(), now
+
+
+def test_nominal_history_has_known_idle_dhw_defrost_exclusions_not_unknown_gaps():
+    packed, now = nominal_history()
+    summary = FlowHistory(packed).summary(now, "Europe/Paris", ANCHOR, 5)
+    assert summary["consecutive_declines"] == 4
+    assert all(day["reliable"] for day in summary["days"])
+    assert all(day["samples"] < day["observed_slots"] for day in summary["days"])
+    assert summary["days"][-1]["minimum"] == 7.25
+    assert summary["days"][-1]["median"] == 13
+
+
+def test_old_compact_history_migrates_without_inventing_verified_mode_context():
+    packed, now = nominal_history()
+    old = deepcopy(packed)
+    old["version"] = 1
+    old["rows"] = [row[:-1] for row in old["rows"]]
+    migrated = FlowHistory(old)
+    assert all(row["mode_verified"] is False for row in migrated.rows)
+    assert migrated.summary(now, "Europe/Paris", ANCHOR, 5)["consecutive_declines"] is None
+
+
+def synthetic_report(*, complete=True):
     """Public, explicitly synthetic example consumed by tests and local preview."""
-    history, now = five_days()
+    if complete:
+        packed, now = nominal_history()
+        history = FlowHistory(packed)
+    else:
+        history, now = five_days()
     engine = Engine(settings())
     engine.evaluate(snapshot(now - 50, 9, speed=55))
     engine.evaluate(snapshot(now - 30, 8.75, speed=55))
     incident = engine.incident
+    current = engine.evaluate(snapshot(now, 7.25, speed=55, flow_at=now - 2))
     return {
         "name": "SYNTHETIC DEMONSTRATION / DÉMONSTRATION FICTIVE",
         "generated_at": datetime.fromtimestamp(now, UTC).isoformat(),
@@ -355,6 +435,7 @@ def synthetic_report():
         "flow": 7.25,
         "flow_reported_at": datetime.fromtimestamp(now - 2, UTC).isoformat(),
         "minimum": 10,
+        "duration_seconds": current.anomaly_duration,
         "state": "urgent",
         "reason_code": "absolute_low_flow",
         "incident": {
@@ -384,6 +465,37 @@ def synthetic_report():
             },
         ],
     }
+
+
+@pytest.mark.parametrize("language,index", [("en", 0), ("fr", 1), ("es", 2), ("de", 3)])
+def test_partial_history_is_upfront_without_a_prominent_or_subject_decline(language, index):
+    data = synthetic_report(complete=False)
+    title, plain, html = render_report(data, "urgent", language)
+    assert _WORDS["partial_history"][index] in title
+    assert "-45" not in title
+    front = html.split(_WORDS["appendix"][index])[0]
+    assert "-45" not in front
+    assert _WORDS["insufficient"][index] in front
+    assert _WORDS["limited_change"][index] in html
+    assert _WORDS["limited_change"][index] in plain
+
+
+def test_layout_keeps_brand_red_large_figures_compact_priority_and_structured_appendix():
+    _, _, html = render_report(synthetic_report(), "urgent", "fr")
+    assert "#ff8065" not in html.lower()
+    assert html.count('class="guard-big"') == 3
+    assert html.count("font-size:48px;line-height:1.2;color:#FF3E17") == 2
+    assert "<strong>:</strong>" not in html
+    assert "Manquant / non renseigné L/min" not in html
+    assert "Manquant / non renseigné secondes" not in html
+    front, appendix = html.split("Annexe de diagnostic", 1)
+    assert "Aucun rattrapage Recorder" not in front
+    assert "Aucun rattrapage Recorder" in appendix
+    assert "25 oct." in front
+    assert '<th scope="row"' in appendix
+    assert front.index("Cinq jours") < front.index("Faire inspecter") < len(front)
+    assert "20 secondes" in front
+    assert "50 seconds" not in html
 
 
 @pytest.mark.parametrize("language", ("en", "fr", "es", "de"))

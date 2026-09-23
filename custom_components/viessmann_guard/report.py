@@ -256,6 +256,12 @@ _COPY = {
 }
 
 _LABELS = {
+    "duration_seconds": (
+        "Condition duration (current observation window)",
+        "Durée de la condition (fenêtre d'observation actuelle)",
+        "Duración de la condición (ventana de observación actual)",
+        "Dauer des Zustands (aktuelles Beobachtungsfenster)",
+    ),
     "percentage_points": (
         "percentage points",
         "points de pourcentage",
@@ -476,7 +482,10 @@ def _value(value: Any, copy: dict[str, str]) -> str:
 
 
 def _measurement(value: Any, unit: str, copy: dict[str, str]) -> str:
-    return f"{_value(value, copy)} {unit}"
+    scalar = _scalar(value)
+    if scalar is None or scalar.casefold() in {"unknown", "unavailable", "none"}:
+        return copy["missing"]
+    return f"{scalar} {unit}".strip()
 
 
 def _threshold_unit(name: str, copy: dict[str, str]) -> str:

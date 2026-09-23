@@ -314,6 +314,12 @@ La conclusion sur cinq jours exige aussi une observation à chaque créneau
 minute écoulé, sans lacune de contexte inconnu ou périmé. Sinon, la preuve
 est indiquée insuffisante, même si un pourcentage entre médianes disponibles
 peut être calculé.
+Un repos/dégivrage identifié fraîchement, une circulation confirmée arrêtée
+ou un autre mode connu constituent des **exclusions observées**, même si le
+débit n'est plus rapporté pendant ces périodes. Ce ne sont pas des trous inconnus
+et la PAC n'a pas à tourner 24 h/24. Un mode manquant ou périmé ne suffit pas
+à justifier une exclusion. L'objet signale d'emblée un historique partiel ;
+son pourcentage limité aux points disponibles reste dans l'annexe technique.
 
 Le mode, l'état de circulation et, si elle est connue, la vitesse avec sa
 tolérance sont comparés au contexte capturé de l'alerte, ou au contexte actuel

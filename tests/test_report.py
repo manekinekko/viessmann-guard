@@ -189,7 +189,7 @@ def test_report_and_test_without_incident_do_not_invent_severity():
         title, plain, _ = render_report({}, kind)
         assert "[URGENT]" not in title
         assert "Recorded severity: Missing / not supplied" in plain
-        assert "Current source flow: Missing / not supplied L/min" in plain
+        assert "Current source flow: Missing / not supplied" in plain
         assert "Generated at: Missing / not supplied" in plain
 
 
@@ -315,7 +315,7 @@ def test_missing_and_stale_are_both_explicit_even_for_partial_telemetry():
     }
     _, plain, html = render_report(snapshot, "test")
     assert "Optional sensor (sensor.optional)" in plain
-    assert "Data age: Missing / not supplied seconds" in plain
+    assert "Data age: Missing / not supplied" in plain
     assert "Missing / not supplied; Stale" in plain
     assert "Missing / not supplied; Unavailable" in plain
     assert plain.count("Data status: Missing / not supplied") == 4
@@ -335,7 +335,7 @@ def test_nonfinite_numbers_are_missing_instead_of_misleading_measurements(snapsh
     snapshot["reference"] = float("inf")
     snapshot["telemetry"][0]["value"] = float("-inf")
     _, plain, _ = render_report(snapshot, "report")
-    assert "Current source flow: Missing / not supplied L/min" in plain
-    assert "Reference flow: Missing / not supplied L/min" in plain
+    assert "Current source flow: Missing / not supplied" in plain
+    assert "Reference flow: Missing / not supplied" in plain
     assert "nan L/min" not in plain
     assert "inf L/min" not in plain

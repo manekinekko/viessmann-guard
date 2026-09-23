@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from copy import deepcopy
 from datetime import datetime, time, timedelta
-from typing import Any
+from typing import Any, TypeGuard
 from zoneinfo import ZoneInfo
 
 from .engine import Result, Settings, Snapshot, _label, convert_flow
@@ -13,10 +13,20 @@ from .engine import Result, Settings, Snapshot, _label, convert_flow
 INTERVAL = 60
 RETENTION_SECONDS = 6 * 86400
 MAX_SAMPLES = RETENTION_SECONDS // INTERVAL + 1
-_FIELDS = ("at", "reported_at", "flow", "mode", "pump", "speed", "speed_configured", "quality")
+_FIELDS = (
+    "at",
+    "reported_at",
+    "flow",
+    "mode",
+    "pump",
+    "speed",
+    "speed_configured",
+    "quality",
+    "mode_verified",
+)
 
 
-def number(value: Any) -> bool:
+def number(value: Any) -> TypeGuard[int | float]:
     return type(value) in (int, float) and math.isfinite(value)
 
 
@@ -89,6 +99,25 @@ def observation(sample: Snapshot, rules: Settings, result: Result) -> dict[str, 
             "native_fault",
         }:
             quality = result.reason
+    # A fresh explicit excluded mode or stopped pump accounts for a known
+    # non-comparison interval even when flow/speed stop reporting while idle.
+    mode_fresh = (
+        sample.mode.status == "ok"
+        and number(sample.mode.observed_at)
+        and 0 <= sample.now - sample.mode.observed_at <= rules.stale_after_s
+    )
+    pump_fresh = (
+        sample.pump is not None
+        and sample.pump.status == "ok"
+        and number(sample.pump.observed_at)
+        and 0 <= sample.now - sample.pump.observed_at <= rules.stale_after_s
+    )
+    if mode_fresh and mode in (*rules.idle_modes, *rules.excluded_modes):
+        quality = "mode_excluded"
+    elif (
+        mode_fresh and mode in rules.running_modes and pump_fresh and pump in rules.pump_off_values
+    ):
+        quality = "pump_off"
     return {
         "at": sample.now,
         "reported_at": sample.flow.observed_at if number(sample.flow.observed_at) else None,
@@ -98,6 +127,9 @@ def observation(sample: Snapshot, rules: Settings, result: Result) -> dict[str, 
         "speed": speed,
         "speed_configured": sample.pump_speed is not None,
         "quality": quality,
+        "mode_verified": bool(
+            mode_fresh and mode in (*rules.running_modes, *rules.idle_modes, *rules.excluded_modes)
+        ),
     }
 
 
@@ -112,13 +144,19 @@ class FlowHistory:
             self._restore(restored)
 
     def _restore(self, value: dict) -> None:
-        if not isinstance(value, dict) or value.get("version") != 1:
+        if not isinstance(value, dict) or value.get("version") not in (1, 2):
             raise ValueError("Unsupported flow history schema")
         packed = value.get("rows")
         if not isinstance(packed, list) or len(packed) > MAX_SAMPLES:
             raise ValueError("Invalid flow history size")
         rows = []
         for packed_row in packed:
+            if (
+                value["version"] == 1
+                and isinstance(packed_row, list)
+                and len(packed_row) == len(_FIELDS) - 1
+            ):
+                packed_row = [*packed_row, False]
             if not isinstance(packed_row, list) or len(packed_row) != len(_FIELDS):
                 raise ValueError("Invalid flow history row")
             rows.append(dict(zip(_FIELDS, packed_row, strict=True)))
@@ -133,6 +171,7 @@ class FlowHistory:
                 "speed",
                 "speed_configured",
                 "quality",
+                "mode_verified",
             }:
                 raise ValueError("Invalid flow history row")
             if not number(row["at"]) or row["at"] < 0 or int(row["at"] // INTERVAL) <= last:
@@ -143,9 +182,13 @@ class FlowHistory:
                     raise ValueError("Invalid flow history measurement")
             if row["speed"] is not None and row["speed"] > 100:
                 raise ValueError("Invalid flow history speed")
-            if type(row["speed_configured"]) is not bool or any(
-                row[key] is not None and (not isinstance(row[key], str) or len(row[key]) > 128)
-                for key in ("mode", "pump", "quality")
+            if (
+                type(row["speed_configured"]) is not bool
+                or type(row["mode_verified"]) is not bool
+                or any(
+                    row[key] is not None and (not isinstance(row[key], str) or len(row[key]) > 128)
+                    for key in ("mode", "pump", "quality")
+                )
             ):
                 raise ValueError("Invalid flow history context")
             if row["quality"] == "eligible" and (
@@ -179,7 +222,7 @@ class FlowHistory:
 
     def export(self) -> dict[str, Any]:
         return {
-            "version": 1,
+            "version": 2,
             "started_at": self.started_at,
             "rows": [[row[key] for key in _FIELDS] for row in self.rows],
             "truncated": self.truncated,
@@ -248,6 +291,11 @@ class FlowHistory:
                     and len(day_rows) == slots
                     and all(
                         row["quality"] in {"eligible", "mode_excluded", "pump_off", "startup_grace"}
+                        or (
+                            row["mode_verified"]
+                            and anchor is not None
+                            and row["mode"] != anchor.get("mode")
+                        )
                         for row in day_rows
                     ),
                     "first_at": matched[0]["at"] if matched else None,

@@ -59,6 +59,14 @@ The five-day consecutive label additionally requires every elapsed minute slot
 to be observed without unknown/stale context gaps; sparse sampled medians alone
 do not qualify. Known idle/excluded/startup intervals remain gaps in flow but
 can account for an observed slot without asserting running time.
+Fresh explicit idle/defrost modes and a confirmed stopped pump account for
+known exclusions even when unused flow/speed are stale. Each compact row also
+records whether its operating mode was freshly verified against configured
+sets, so a known different mode (for example DHW while comparing heating) can
+account for an exclusion without pretending its flow was fresh. Unknown/stale
+mode evidence cannot do this. Compact history schema 2 accepts schema-1 rows
+with this new verification flag conservatively false. Partial-history subjects
+and headings lead with that limit; their percentage is relegated to the appendix.
 
 Source/rule fingerprint changes clear incompatible local samples; registry UUID
 renames preserve them. Captures retain the original fingerprint so an old
