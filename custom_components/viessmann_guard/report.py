@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import unicodedata
-from html import escape
 from math import isfinite
 from typing import Any
 
 from .const import LANGUAGES, LIST_SETTINGS, normalize_language
+from .email_layout import layout
 from .reasons import describe_reason
 
 _COPY = {
@@ -670,23 +670,4 @@ def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str,
     )
     sections.append((copy["limitations"], [("", copy["limitations_text"])]))
 
-    plain_parts = [title]
-    html_parts = [
-        f'<!DOCTYPE html><html lang="{language}"><head><meta charset="utf-8">'
-        f"<title>{escape(title)}</title></head><body><h1>{escape(title)}</h1>"
-    ]
-    for heading, rows in sections:
-        plain_parts.extend(("", heading))
-        html_parts.append(f"<section><h2>{escape(heading)}</h2>")
-        if rows:
-            html_parts.append("<dl>")
-            for label, value in rows:
-                plain_parts.append(f"{label}: {value}" if label else value)
-                html_parts.append(f"<dt>{escape(label)}</dt><dd>{escape(value)}</dd>")
-            html_parts.append("</dl>")
-        else:
-            plain_parts.append(copy["missing"])
-            html_parts.append(f"<p>{escape(copy['missing'])}</p>")
-        html_parts.append("</section>")
-    html_parts.append("</body></html>")
-    return title, "\n".join(plain_parts), "".join(html_parts)
+    return layout(snapshot, kind, language, title, copy[kind], copy, _scalar, sections)

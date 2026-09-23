@@ -1194,7 +1194,7 @@ def test_empty_or_malformed_optional_persistence_is_ignored_safely(restored):
     assert engine.evaluate(snapshot(1000)).reason == "awaiting_post_restart_reports"
 
 
-@pytest.mark.parametrize("version", [0, 2, -1, True, "1", None])
+@pytest.mark.parametrize("version", [0, 3, -1, True, "1", None])
 def test_unsupported_restoration_version_is_explicitly_rejected(version):
     engine = Engine(settings())
     calibrate(engine)

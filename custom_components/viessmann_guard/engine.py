@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any, cast
 from uuid import uuid4
 
-SERIAL_VERSION = 1
+SERIAL_VERSION = 2
 MAX_CLEANING_HISTORY = 50
 MAX_SNOOZE_SECONDS = 7 * 86400
 
@@ -53,6 +54,73 @@ def convert_flow(value: float | str | None, unit: str | None) -> float:
     if not math.isfinite(converted):
         raise ValueError("Converted flow must be finite")
     return converted
+
+
+def validate_capture(value: Any) -> dict[str, Any] | None:
+    """Accept a detached, strictly bounded capture; legacy absence stays unknown."""
+    if value is None:
+        return None
+    keys = {
+        "version",
+        "decided_at",
+        "flow",
+        "flow_reported_at",
+        "unit",
+        "reason",
+        "duration_s",
+        "observed_since",
+        "minimum",
+        "relative_drop_pct",
+        "reference",
+        "mode",
+        "pump",
+        "pump_speed",
+        "speed_configured",
+        "source_fingerprint",
+        "fault",
+        "fault_reported_at",
+    }
+    if (
+        not isinstance(value, dict)
+        or set(value) != keys
+        or type(value["version"]) is not int
+        or value["version"] != 1
+    ):
+        raise ValueError("Invalid incident evidence schema")
+    if value["unit"] != "L/min" or value["reason"] not in {
+        "absolute_low_flow",
+        "relative_flow_decline",
+        "native_fault",
+    }:
+        raise ValueError("Invalid incident evidence rule/unit")
+    for key in ("decided_at", "duration_s", "observed_since"):
+        if _timestamp(value[key]) is None or value[key] < 0:
+            raise ValueError("Invalid incident evidence time")
+    for key in (
+        "flow",
+        "flow_reported_at",
+        "minimum",
+        "relative_drop_pct",
+        "reference",
+        "pump_speed",
+        "fault_reported_at",
+    ):
+        if value[key] is not None and (_timestamp(value[key]) is None or value[key] < 0):
+            raise ValueError("Invalid incident evidence measurement")
+    if (value["flow"] is None) != (value["flow_reported_at"] is None):
+        raise ValueError("Incomplete incident flow evidence")
+    if value["observed_since"] > value["decided_at"] or (
+        value["flow_reported_at"] is not None and value["flow_reported_at"] > value["decided_at"]
+    ):
+        raise ValueError("Invalid incident evidence chronology")
+    if type(value["speed_configured"]) is not bool or any(
+        value[key] is not None and (not isinstance(value[key], str) or len(value[key]) > 128)
+        for key in ("mode", "pump", "source_fingerprint", "fault")
+    ):
+        raise ValueError("Invalid incident evidence context")
+    if value["pump_speed"] is not None and value["pump_speed"] > 100:
+        raise ValueError("Invalid incident speed")
+    return dict(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,10 +270,18 @@ class Engine:
     Adapters map those phases to their public entity state enumeration.
     """
 
-    def __init__(self, settings: Settings, restored: dict | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        restored: dict | None = None,
+        *,
+        source_fingerprint: str | None = None,
+    ) -> None:
         self.settings = settings
+        self._source_fingerprint = source_fingerprint
         self._baseline: dict[str, Any] | None = None
         self._incident: dict[str, Any] | None = None
+        self._last_incident: dict[str, Any] | None = None
         self._acked = False
         self._snoozed_until: float | None = None
         self._cleaning_history: list[float] = []
@@ -232,7 +308,7 @@ class Engine:
     def _restore(self, data: dict) -> None:
         if not data:
             return
-        if type(data.get("version")) is not int or data["version"] != SERIAL_VERSION:
+        if type(data.get("version")) is not int or data["version"] not in (1, SERIAL_VERSION):
             raise ValueError(f"Unsupported engine restoration version; expected {SERIAL_VERSION}")
         baseline = data.get("baseline")
         if isinstance(baseline, dict):
@@ -276,6 +352,8 @@ class Engine:
                     "severity": incident["severity"],
                     "reason": incident["reason"],
                     "opened_at": opened_at,
+                    "opening": validate_capture(incident.get("opening")),
+                    "escalation": validate_capture(incident.get("escalation")),
                 }
                 self._acked = data.get("acked") is True
                 snooze = _number(data.get("snoozed_until"))
@@ -294,13 +372,37 @@ class Engine:
             self._last_cleaned = last_cleaned
         if self._cleaning_history:
             self._last_cleaned = max(self._last_cleaned or 0, self._cleaning_history[-1])
+        if isinstance(data.get("last_incident"), dict):
+            closed = data["last_incident"]
+            restored_closed = Engine(
+                self.settings, {"version": SERIAL_VERSION, "incident": closed}
+            ).incident
+            closed_at = _timestamp(closed.get("closed_at"))
+            if (
+                restored_closed is None
+                or closed_at is None
+                or closed_at < restored_closed["opened_at"]
+            ):
+                raise ValueError("Invalid closed incident time")
+            self._last_incident = {**restored_closed, "closed_at": closed_at}
+        elif data.get("last_incident") is not None:
+            raise ValueError("Invalid closed incident")
+
+    @property
+    def incident(self) -> dict[str, Any] | None:
+        return deepcopy(self._incident)
+
+    @property
+    def last_incident(self) -> dict[str, Any] | None:
+        return deepcopy(self._last_incident)
 
     def serialize(self) -> dict:
         """Return detached, JSON-compatible durable data, excluding all timers."""
         return {
             "version": SERIAL_VERSION,
             "baseline": None if self._baseline is None else dict(self._baseline),
-            "incident": None if self._incident is None else dict(self._incident),
+            "incident": self.incident,
+            "last_incident": self.last_incident,
             "acked": self._acked,
             "snoozed_until": self._snoozed_until,
             "last_cleaned": self._last_cleaned,
@@ -408,7 +510,67 @@ class Engine:
     def _mature(window: _Window | None, now: float, duration: float) -> bool:
         return window is not None and window.samples >= 2 and now - window.started_at >= duration
 
-    def _open(self, severity: str, reason: str, now: float) -> str | None:
+    def _capture(self, snapshot: Snapshot, reason: str, duration: float) -> dict[str, Any]:
+        def fresh(item: Measurement | None, role: str) -> bool:
+            return (
+                self._problem(item, role, snapshot.now) is None
+                and item is not None
+                and self._after_boot([item])
+            )
+
+        flow = None
+        if (
+            fresh(snapshot.flow, "flow")
+            and self._last_flow_at == snapshot.flow.observed_at
+            and self._last_flow_signature
+            == (snapshot.flow.value, snapshot.flow.unit, snapshot.flow.status)
+        ):
+            try:
+                flow = convert_flow(snapshot.flow.value, snapshot.flow.unit)
+            except ValueError:
+                pass  # Native faults can open without a usable flow source.
+        mode = _label(snapshot.mode.value) if fresh(snapshot.mode, "mode") else None
+        pump = (
+            _label(snapshot.pump.value) if snapshot.pump and fresh(snapshot.pump, "pump") else None
+        )
+        speed = (
+            _number(snapshot.pump_speed.value)
+            if snapshot.pump_speed
+            and fresh(snapshot.pump_speed, "pump_speed")
+            and snapshot.pump_speed.unit == "%"
+            else None
+        )
+        if speed is not None and not 0 <= speed <= 100:
+            speed = None
+        comparable = mode is not None and self._comparable(_Context(mode, speed))
+        return {
+            "version": 1,
+            "decided_at": snapshot.now,
+            "flow": flow,
+            "flow_reported_at": snapshot.flow.observed_at if flow is not None else None,
+            "unit": "L/min",
+            "reason": reason,
+            "duration_s": duration,
+            "observed_since": snapshot.now - duration,
+            "minimum": self.settings.min_flow_l_min,
+            "relative_drop_pct": self.settings.relative_drop_pct
+            if reason == "relative_flow_decline"
+            else None,
+            "reference": self._baseline["value"] if comparable and self._baseline else None,
+            "mode": mode,
+            "pump": pump,
+            "pump_speed": speed,
+            "speed_configured": snapshot.pump_speed is not None,
+            "source_fingerprint": self._source_fingerprint,
+            "fault": str(snapshot.fault.value)[:128]
+            if snapshot.fault and fresh(snapshot.fault, "fault")
+            else None,
+            "fault_reported_at": snapshot.fault.observed_at
+            if snapshot.fault and fresh(snapshot.fault, "fault")
+            else None,
+        }
+
+    def _open(self, severity: str, reason: str, snapshot: Snapshot, duration: float) -> str | None:
         self._confirmed = True
         self._calibration = None
         if self._incident is None:
@@ -416,7 +578,9 @@ class Engine:
                 "id": uuid4().hex,
                 "severity": severity,
                 "reason": reason,
-                "opened_at": now,
+                "opened_at": snapshot.now,
+                "opening": self._capture(snapshot, reason, duration),
+                "escalation": None,
             }
             self._acked = False
             self._snoozed_until = None
@@ -424,6 +588,7 @@ class Engine:
         if self._incident["severity"] == "watch" and severity == "urgent":
             self._incident["severity"] = severity
             self._incident["reason"] = reason
+            self._incident["escalation"] = self._capture(snapshot, reason, duration)
             self._acked = False
             return "escalated"
         if self._incident["severity"] == severity:
@@ -475,7 +640,9 @@ class Engine:
                     self._fault_since = now
                 transition = None
                 if self._after_boot([snapshot.fault]):
-                    transition = self._open("urgent", "native_fault", now)
+                    transition = self._open(
+                        "urgent", "native_fault", snapshot, now - self._fault_since
+                    )
                 else:
                     self._confirmed = False
                 self.result = self._result(
@@ -582,11 +749,17 @@ class Engine:
         )
         transition = None
         if self._mature(self._absolute, now, self.settings.absolute_persistence_s):
-            transition = self._open("urgent", "absolute_low_flow", now)
+            assert self._absolute is not None
+            transition = self._open(
+                "urgent", "absolute_low_flow", snapshot, now - self._absolute.started_at
+            )
         elif self._mature(self._relative, now, self.settings.relative_persistence_s) and (
             self._incident is None or self._incident["severity"] == "watch"
         ):
-            transition = self._open("watch", "relative_flow_decline", now)
+            assert self._relative is not None
+            transition = self._open(
+                "watch", "relative_flow_decline", snapshot, now - self._relative.started_at
+            )
 
         if self._incident is not None:
             if minimum is None and self._incident["reason"] != "relative_flow_decline":
@@ -602,6 +775,7 @@ class Engine:
                 self._recovery = self._advance(self._recovery, new_report, now)
                 reason = "recovery_pending"
                 if self._mature(self._recovery, now, self.settings.recovery_s):
+                    self._last_incident = {**deepcopy(self._incident), "closed_at": now}
                     self._incident = None
                     self._acked = False
                     self._snoozed_until = None

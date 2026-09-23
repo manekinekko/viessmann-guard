@@ -36,6 +36,7 @@ from .const import (
 from .delivery import Delivery, DeliveryError
 from .discovery import resolve_sources
 from .engine import Engine, Settings, Snapshot, convert_flow
+from .history import FlowHistory, observation
 from .report import render_report, report_copy
 from .storage import GuardStore, validate_storage
 from .telemetry import (
@@ -115,6 +116,9 @@ class GuardRuntime:
         self._save_lock = asyncio.Lock()
         self.stopped = False
         self.trends: list[dict[str, Any]] = []
+        self.flow_history = FlowHistory()
+        self._history_saved_at = self.started_at
+        self._history_cache: tuple[tuple, dict] | None = None
         self._last_trend: float | None = None
         self._notice: str | None = None
         self.mail_epoch = 0
@@ -141,7 +145,9 @@ class GuardRuntime:
             # Preserve unresolved incident/history, but never reuse an incompatible reference.
             engine_data = dict(engine_data or {})
             engine_data.pop("baseline", None)
-        self.engine = Engine(settings(self.config), engine_data)
+        self.engine = Engine(
+            settings(self.config), engine_data, source_fingerprint=fingerprint(self.config)
+        )
         self.delivery = Delivery(
             self._send, self._render, self.save, self.changed, restored.get("delivery")
         )
@@ -160,7 +166,16 @@ class GuardRuntime:
             if self.mail_kind == "recovery":
                 self.delivery.cancel_pending()
         self._notice = restored.get("notice")
-        self.trends = restored.get("trends", [])[-120:]
+        self.trends = (
+            restored.get("trends", [])[-120:]
+            if restored.get("fingerprint") in compatible_fingerprints
+            else []
+        )
+        self.flow_history = FlowHistory(
+            restored.get("flow_history")
+            if restored.get("fingerprint") in compatible_fingerprints
+            else None
+        )
         # A reminder is not overdue merely because Home Assistant was offline.
         self.next_reminder = self.started_at + self.config["reminder_hours"] * 3600
         self.unsubscribers = [
@@ -283,6 +298,9 @@ class GuardRuntime:
             self._evaluated_evidence = self._evidence(sample)
             previous_engine = self.engine.serialize()
             result = self.engine.evaluate(sample)
+            history_changed = self.flow_history.add(sample, self.engine.settings, result)
+            if history_changed:
+                self._history_cache = None
             self.last_telemetry = sample.flow.observed_at
             flow = self.observed_flow()
             if sample.flow.observed_at != self._last_trend and flow is not None:
@@ -323,8 +341,8 @@ class GuardRuntime:
                 self._schedule_delivery(now)
             if self.engine.serialize() != previous_engine:
                 await self.save()
-            else:
-                self.store.async_delay_save(self.export, 5)
+            elif history_changed and sample.now - self._history_saved_at >= 300:
+                await self.save()
             self.changed()
 
     @staticmethod
@@ -624,6 +642,37 @@ class GuardRuntime:
             }
         )
         result = self.engine.result
+        incident = self.engine.last_incident if kind == "recovery" else self.engine.incident
+        incident = incident or {}
+        trigger = incident.get("escalation") or incident.get("opening")
+        current = self.snapshot(now)
+        current_observation = observation(current, self.engine.settings, result)
+        anchor = trigger
+        source_changed = bool(
+            trigger and trigger.get("source_fingerprint") != fingerprint(self.config)
+        )
+        if source_changed:
+            anchor = None
+        if anchor is None and not source_changed and current_observation["quality"] == "eligible":
+            anchor = {
+                "mode": current_observation["mode"],
+                "pump": current_observation["pump"],
+                "pump_speed": current_observation["speed"],
+                "speed_configured": current_observation["speed_configured"],
+            }
+        cache_key = (
+            int(now // 60),
+            self.hass.config.time_zone,
+            json.dumps(anchor, sort_keys=True),
+            self.engine.settings.pump_tolerance_pct,
+        )
+        if self._history_cache is None or self._history_cache[0] != cache_key:
+            self._history_cache = (
+                cache_key,
+                self.flow_history.summary(
+                    now, self.hass.config.time_zone, anchor, self.engine.settings.pump_tolerance_pct
+                ),
+            )
 
         return render_report(
             {
@@ -632,6 +681,12 @@ class GuardRuntime:
                 "state": self.diagnostic_state,
                 "reason_code": result.reason,
                 "flow": self.observed_flow(),
+                "flow_reported_at": iso(current.flow.observed_at),
+                "flow_status": current.flow.status,
+                "timezone": self.hass.config.time_zone,
+                "incident_capture": trigger,
+                "incident_source_changed": source_changed,
+                "history": self._history_cache[1],
                 "reference": result.reference,
                 "minimum": self.config["min_flow_l_min"],
                 "decline_pct": result.decline_pct,
@@ -647,8 +702,14 @@ class GuardRuntime:
                 ],
                 "limitation_codes": self.limitations,
                 "incident": {
-                    "id": result.incident_id,
-                    "severity": result.incident_severity,
+                    "id": incident.get("id"),
+                    "severity": incident.get("severity"),
+                    "opened_at": iso(incident.get("opened_at")),
+                    "closed_at": iso(incident.get("closed_at")),
+                    "escalated_at": iso(incident["escalation"]["decided_at"])
+                    if incident.get("escalation")
+                    else None,
+                    "opening": incident.get("opening"),
                     "acknowledged": result.acked,
                     "snoozed_until": iso(result.snoozed_until),
                 },
@@ -664,7 +725,7 @@ class GuardRuntime:
 
     def export(self) -> dict[str, Any]:
         return {
-            "schema": 1,
+            "schema": 2,
             "fingerprint": fingerprint(self.config),
             "engine": self.engine.serialize(),
             "delivery": self.delivery.export(),
@@ -676,12 +737,14 @@ class GuardRuntime:
             "mail_severity": self.mail_severity,
             "notice": self._notice,
             "trends": self.trends[-120:],
+            "flow_history": self.flow_history.export(),
         }
 
     async def save(self) -> None:
         async with self._save_lock:
             try:
                 await self.store.async_save(self.export())
+                self._history_saved_at = dt_util.utcnow().timestamp()
                 self.storage_error = None
             except OSError:
                 self.storage_error = "storage_error"
