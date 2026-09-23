@@ -326,7 +326,7 @@ async def test_migration_preserves_expert_overrides_and_rename_across_reload(
 ):
     original = dict(source_config)
     entry = await setup_guard(hass, source_config)
-    assert entry.minor_version == 3
+    assert entry.minor_version == 4
     assert entry.data == original
     runtime = entry.runtime_data
     before = fingerprint(runtime.config)

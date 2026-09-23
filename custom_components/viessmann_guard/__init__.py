@@ -106,4 +106,26 @@ async def async_migrate_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> b
             },
             minor_version=3,
         )
+    if entry.minor_version < 4:
+        from .discovery import AUTOMATIC_PHASE_PROFILE, has_legacy_automatic_phase_profile
+        from .runtime import configuration, fingerprint
+
+        data, options = dict(entry.data), dict(entry.options)
+        if has_legacy_automatic_phase_profile(hass, data, options):
+            before = configuration(entry)
+            previous = [
+                fingerprint(before),
+                fingerprint({**before, "source_registry_ids": {}}),
+            ]
+            data["idle_modes"] = ["off", "ready"]
+            data["automatic_phase_profile"] = AUTOMATIC_PHASE_PROFILE
+            if "idle_modes" in options:
+                options["idle_modes"] = ["off", "ready"]
+            after = {**before, **data, **options}
+            data["ready_idle_compatibility"] = {
+                "version": 1,
+                "before": previous,
+                "after": fingerprint(after),
+            }
+        hass.config_entries.async_update_entry(entry, data=data, options=options, minor_version=4)
     return True

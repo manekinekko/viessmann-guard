@@ -2781,7 +2781,7 @@ wheels = [
 
 [[package]]
 name = "viessmann-guard"
-version = "0.4.0"
+version = "0.4.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]

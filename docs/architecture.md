@@ -108,17 +108,29 @@ Unverified split-device configurations require manual mapping.
 
 Global `volumetric_flow`, compressor `compressor_phase-<id>` and heating-circuit
 `circulationpump_active-<id>` are the main roles. Heating/cooling are eligible;
-off is idle; defrost and unknown phases cannot form healthy evidence. DHW pumps,
+off/ready are idle; defrost and unknown phases cannot form healthy evidence. DHW pumps,
 DHW selectors and climate `auto` never substitute. No generic `device_error`
 mapping is used for low-flow diagnosis. Multiple role candidates are ambiguous
 even if one is disabled. No upstream registry is changed.
 
-Config entries remain major version 1, minor version 3. Migration adds registry
+Config entries remain major version 1, minor version 4. Earlier migration adds registry
 UUID bindings without replacing data/options, thresholds or email permission.
 Bindings follow entity renames and report exclusions; source identity, not the
 renameable entity ID, enters the baseline fingerprint. Legacy unchanged
 fingerprints remain compatible. Explicit source/rule changes still invalidate
 the baseline, preserving unresolved incidents and maintenance history.
+
+Minor 4 adds `ready` only to the legacy automatic idle set. It requires unchanged
+discovery provenance, mode sets, device selection and source registry bindings,
+plus an enabled native ViCare compressor-phase entity. Registry renames and
+unchanged defaults copied by email options do not count as expert replacements.
+Manual mappings, edited mode sets and explicit source overrides are not migrated.
+Automatic phase profile 1 marks the corrected defaults. A versioned record of
+the exact before/after fingerprints preserves references, local history and
+immutable captures across this correction only; later source/rule edits stop
+accepting those compatibility fingerprints. Old unknown `ready` rows remain
+unknown. Fresh idle observations cannot learn a baseline, resolve an incident
+or hide a mapped native fault. No freshness threshold or storage schema changes.
 
 ### Sources
 

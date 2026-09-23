@@ -96,6 +96,29 @@ def fingerprint(config: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
 
 
+def compatible_fingerprints(config: dict[str, Any]) -> set[str]:
+    current = fingerprint(config)
+    compatible = {current}
+    proof = config.get("ready_idle_compatibility")
+    if (
+        config.get("setup_mode") == "automatic"
+        and config.get("automatic_phase_profile") == 1
+        and isinstance(proof, dict)
+        and proof.get("version") == 1
+        and proof.get("after") == current
+        and isinstance(proof.get("before"), list)
+        and len(proof["before"]) <= 2
+    ):
+        compatible.update(
+            value
+            for value in proof["before"]
+            if isinstance(value, str)
+            and len(value) == 64
+            and all(char in "0123456789abcdef" for char in value)
+        )
+    return compatible
+
+
 class GuardRuntime:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
@@ -137,11 +160,11 @@ class GuardRuntime:
     async def start(self) -> None:
         restored = validate_storage(await self.store.async_load())
         engine_data = restored.get("engine")
-        compatible_fingerprints = {
-            fingerprint(self.config),
+        accepted_fingerprints = {
+            *compatible_fingerprints(self.config),
             fingerprint({**configuration(self.entry), "source_registry_ids": {}}),
         }
-        if restored and restored.get("fingerprint") not in compatible_fingerprints:
+        if restored and restored.get("fingerprint") not in accepted_fingerprints:
             # Preserve unresolved incident/history, but never reuse an incompatible reference.
             engine_data = dict(engine_data or {})
             engine_data.pop("baseline", None)
@@ -168,12 +191,12 @@ class GuardRuntime:
         self._notice = restored.get("notice")
         self.trends = (
             restored.get("trends", [])[-120:]
-            if restored.get("fingerprint") in compatible_fingerprints
+            if restored.get("fingerprint") in accepted_fingerprints
             else []
         )
         self.flow_history = FlowHistory(
             restored.get("flow_history")
-            if restored.get("fingerprint") in compatible_fingerprints
+            if restored.get("fingerprint") in accepted_fingerprints
             else None
         )
         # A reminder is not overdue merely because Home Assistant was offline.
@@ -649,7 +672,8 @@ class GuardRuntime:
         current_observation = observation(current, self.engine.settings, result)
         anchor = trigger
         source_changed = bool(
-            trigger and trigger.get("source_fingerprint") != fingerprint(self.config)
+            trigger
+            and trigger.get("source_fingerprint") not in compatible_fingerprints(self.config)
         )
         if source_changed:
             anchor = None

@@ -70,6 +70,15 @@ Une pompe ECS ou un sélecteur de mode ECS ne remplace pas le contexte chauffage
 Le réglage `auto` d'un thermostat ne prouve pas un mode hydraulique actif.
 Un défaut générique n'est pas automatiquement interprété comme un défaut de débit.
 
+La phase native `ready` signifie arrêt/attente, jamais chauffage. Depuis 0.4.1,
+ses rapports frais comptent comme des périodes exclues connues, pas des trous
+inconnus. Au chargement, une migration contrôlée corrige uniquement les anciens
+modes automatiques ViCare non personnalisés. Les associations manuelles/expertes,
+emails et limites de fraîcheur restent inchangés. La référence saine, les captures
+d'incident et les lignes historiques sont conservées, sans requalifier
+rétroactivement les anciennes lignes inconnues. Les comparaisons demandent
+toujours de vraies périodes fraîches de chauffage/refroidissement avec circulation.
+
 **Vous pouvez commencer sans connaître le débit minimum constructeur.**
 L'observation du débit, l'historique et le contexte des rapports deviennent
 disponibles avec les mesures fraîches. Le minimum reste absent, jamais zéro

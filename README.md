@@ -117,6 +117,14 @@ DHW operating-mode select is **not** substituted for heating hydraulics.
 Climate `auto` is not evidence of an active hydraulic mode. Generic native
 errors are not automatically mapped to low-flow faults.
 
+Native compressor phase `ready` means idle, not heating. From 0.4.1, fresh
+`ready` reports count as known non-comparison periods instead of unknown gaps.
+The normal configuration migration updates existing untouched automatic ViCare
+mode mappings only. Manual/expert mappings, email settings and freshness limits
+stay unchanged. It preserves the healthy reference, incident captures and
+historical rows; earlier unknown rows are not retrospectively reclassified.
+Comparable flow still requires actual fresh heating/cooling and circulation.
+
 **Observation starts without a manufacturer minimum.** Current flow/history
 and device-scoped reports become available with fresh measurements. The minimum
 is absent (`None`), not zero or a guessed threshold. Absolute low-flow alerts

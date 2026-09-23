@@ -45,6 +45,12 @@ EXTRA_REPORT_KEYS = frozenset(
         "spf_heating",
     )
 )
+AUTOMATIC_PHASE_PROFILE = 1
+LEGACY_PHASE_MODES = {
+    "running_modes": ["heating", "cooling"],
+    "idle_modes": ["off"],
+    "excluded_modes": ["defrost"],
+}
 
 
 def functional_suffix(entity: er.RegistryEntry, device: dr.DeviceEntry) -> str | None:
@@ -116,8 +122,9 @@ def discover(hass: HomeAssistant) -> list[Candidate]:
             "setup_mode": "automatic",
             "source_registry_ids": {},
             "running_modes": ["heating", "cooling"],
-            "idle_modes": ["off"],
+            "idle_modes": ["off", "ready"],
             "excluded_modes": ["defrost"],
+            "automatic_phase_profile": AUTOMATIC_PHASE_PROFILE,
             "pump_on_values": ["on"],
             "pump_off_values": ["off"],
             "language": "en",
@@ -182,6 +189,58 @@ def discover(hass: HomeAssistant) -> list[Candidate]:
         config["discovery_statuses"] = statuses
         result.append(Candidate(device.id, name, config, statuses))
     return sorted(result, key=lambda item: (item.name.casefold(), item.device_id))
+
+
+def has_legacy_automatic_phase_profile(
+    hass: HomeAssistant, data: dict[str, Any], options: dict[str, Any]
+) -> bool:
+    """Recognize untouched native discovery mappings, never expert replacements."""
+    current = {**data, **options}
+    if (
+        data.get("setup_mode") != "automatic"
+        or current.get("setup_mode") != "automatic"
+        or data.get("automatic_phase_profile") is not None
+        or current.get("automatic_phase_profile") is not None
+        or not data.get("discovery_statuses")
+        or current.get("discovery_statuses") != data["discovery_statuses"]
+        or current.get("device_ids") != data.get("device_ids")
+        or any(
+            data.get(key) != values or current.get(key) != values
+            for key, values in LEGACY_PHASE_MODES.items()
+        )
+    ):
+        return False
+    original_bindings = data.get("source_registry_ids", {})
+    current_bindings = current.get("source_registry_ids", {})
+    if (
+        not isinstance(original_bindings, dict)
+        or not original_bindings.get("mode_entity")
+        or current_bindings != original_bindings
+        or any(
+            current.get(f"{role}_entity") != data.get(f"{role}_entity")
+            and not original_bindings.get(f"{role}_entity")
+            for role in SOURCE_ROLES
+        )
+    ):
+        return False
+    entity = er.async_get(hass).async_get(original_bindings["mode_entity"])
+    device = dr.async_get(hass).async_get(entity.device_id) if entity and entity.device_id else None
+    source_entry = (
+        hass.config_entries.async_get_entry(entity.config_entry_id)
+        if entity and entity.config_entry_id
+        else None
+    )
+    return bool(
+        entity
+        and not entity.disabled
+        and isinstance(device, dr.DeviceEntry)
+        and not device.disabled_by
+        and device.id in current.get("device_ids", [])
+        and source_entry
+        and source_entry.domain == "vicare"
+        and not source_entry.disabled_by
+        and matches(entity, device, "mode")
+    )
 
 
 def configured_devices(hass: HomeAssistant, *, excluding: str | None = None) -> set[str]:
