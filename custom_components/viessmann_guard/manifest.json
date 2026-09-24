@@ -1,0 +1,13 @@
+{
+  "domain": "viessmann_guard",
+  "name": "Viessmann Guard",
+  "codeowners": ["@manekinekko"],
+  "config_flow": true,
+  "dependencies": ["persistent_notification"],
+  "documentation": "https://github.com/manekinekko/viessmann-guard",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/manekinekko/viessmann-guard/issues",
+  "requirements": [],
+  "version": "0.4.2"
+}

@@ -1,0 +1,88 @@
+acknowledge:
+  name: Acknowledge incident
+  description: Mark the current incident as seen, without resolving it or controlling the heat pump.
+  fields:
+    entry_id:
+      name: Monitor
+      description: The Viessmann Guard configuration entry.
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard
+
+snooze:
+  name: Pause reminders
+  description: Pause reminders only, not initial alert retries or urgent escalation. Expiry is not recovery.
+  fields:
+    entry_id:
+      name: Monitor
+      description: The Viessmann Guard configuration entry.
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard
+    hours:
+      name: Hours
+      description: Reminder pause duration from 1 to 168 hours.
+      required: true
+      default: 24
+      selector:
+        number:
+          min: 1
+          max: 168
+          step: 1
+          mode: box
+          unit_of_measurement: h
+
+record_cleaning:
+  name: Record completed cleaning
+  description: Record a maintenance date and cancel incomplete calibration. This does not prove recovery, clear an incident, or replace the accepted reference.
+  fields:
+    entry_id:
+      name: Monitor
+      description: The Viessmann Guard configuration entry.
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard
+
+confirm_calibration:
+  name: Confirm healthy calibration
+  description: Authorize a fixed reference only after independently confirming healthy operation in comparable conditions.
+  fields:
+    entry_id:
+      name: Monitor
+      description: The Viessmann Guard configuration entry.
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard
+    confirmed:
+      name: Healthy operation confirmed
+      description: Must be true. Recording cleaning alone does not establish healthy operation.
+      required: true
+      default: false
+      selector:
+        boolean:
+
+test_email:
+  name: Send test email
+  description: Request a test for configured recipients only while emails are enabled. SMTP completion does not guarantee inbox delivery.
+  fields:
+    entry_id:
+      name: Monitor
+      description: The Viessmann Guard configuration entry.
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard
+get_report:
+  name: Read the observation report
+  description: Return a bounded report for this monitor's selected equipment without sending email. Available while emails are OFF. Review names and values before sharing.
+  fields:
+    entry_id:
+      name: Monitor
+      required: true
+      selector:
+        config_entry:
+          integration: viessmann_guard

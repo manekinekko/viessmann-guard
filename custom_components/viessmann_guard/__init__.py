@@ -1,0 +1,131 @@
+"""Viessmann Guard: a read-only observer of existing Home Assistant entities."""
+
+import logging
+from typing import Any
+
+import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import ConfigEntryError, ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
+
+from .const import DOMAIN, PLATFORMS
+from .runtime import GuardRuntime
+
+_LOGGER = logging.getLogger(__name__)
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+type GuardConfigEntry = ConfigEntry[GuardRuntime]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    async def handle_action(call: ServiceCall) -> ServiceResponse:
+        entry = hass.config_entries.async_get_entry(call.data["entry_id"])
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or not hasattr(entry, "runtime_data")
+            or entry.runtime_data.stopped
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="entry_unavailable"
+            )
+        if call.service == "get_report":
+            return dict(entry.runtime_data.observation_report())
+        await entry.runtime_data.action(
+            call.service, call.data.get("hours", 24), call.data.get("confirmed", False)
+        )
+        return None
+
+    for action in ("acknowledge", "snooze", "record_cleaning", "confirm_calibration", "test_email"):
+        fields: dict[Any, Any] = {vol.Required("entry_id"): cv.string}
+        if action == "snooze":
+            fields[vol.Optional("hours", default=24)] = vol.All(
+                vol.Coerce(float), vol.Range(min=1, max=168)
+            )
+        if action == "confirm_calibration":
+            fields[vol.Required("confirmed")] = vol.All(cv.boolean, vol.Equal(True))
+        hass.services.async_register(DOMAIN, action, handle_action, schema=vol.Schema(fields))
+    hass.services.async_register(
+        DOMAIN,
+        "get_report",
+        handle_action,
+        schema=vol.Schema({vol.Required("entry_id"): cv.string}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> bool:
+    runtime = GuardRuntime(hass, entry)
+    try:
+        await runtime.start()
+    except (ValueError, OSError) as err:
+        _LOGGER.error(
+            "Viessmann Guard storage/configuration could not be loaded (%s)", type(err).__name__
+        )
+        raise ConfigEntryError("Viessmann Guard storage or configuration is invalid") from err
+    entry.runtime_data = runtime
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_options_updated))
+    return True
+
+
+async def _options_updated(hass: HomeAssistant, entry: GuardConfigEntry) -> None:
+    await entry.runtime_data.apply_options()
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> bool:
+    if await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        await entry.runtime_data.stop()
+        return True
+    return False
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> None:
+    from .storage import GuardStore
+
+    await GuardStore(hass, 1, f"{DOMAIN}.{entry.entry_id}").async_remove()
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: GuardConfigEntry) -> bool:
+    if entry.version != 1:
+        _LOGGER.error("Unsupported Viessmann Guard configuration version: %s", entry.version)
+        return False
+    if entry.minor_version < 3:
+        from .discovery import bind_sources
+        from .runtime import configuration
+
+        merged = bind_sources(hass, configuration(entry))
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                **entry.options,
+                "source_registry_ids": merged["source_registry_ids"],
+                "report_registry_ids": merged["report_registry_ids"],
+            },
+            minor_version=3,
+        )
+    if entry.minor_version < 4:
+        from .discovery import AUTOMATIC_PHASE_PROFILE, has_legacy_automatic_phase_profile
+        from .runtime import configuration, fingerprint
+
+        data, options = dict(entry.data), dict(entry.options)
+        if has_legacy_automatic_phase_profile(hass, data, options):
+            before = configuration(entry)
+            previous = [
+                fingerprint(before),
+                fingerprint({**before, "source_registry_ids": {}}),
+            ]
+            data["idle_modes"] = ["off", "ready"]
+            data["automatic_phase_profile"] = AUTOMATIC_PHASE_PROFILE
+            if "idle_modes" in options:
+                options["idle_modes"] = ["off", "ready"]
+            after = {**before, **data, **options}
+            data["ready_idle_compatibility"] = {
+                "version": 1,
+                "before": previous,
+                "after": fingerprint(after),
+            }
+        hass.config_entries.async_update_entry(entry, data=data, options=options, minor_version=4)
+    return True

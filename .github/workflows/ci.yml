@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python 3.14 / ${{ matrix.dependencies }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dependencies: [current, minimum]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.15"
+      - name: Install locked current environment
+        if: matrix.dependencies == 'current'
+        run: uv sync --frozen
+      - name: Test current Home Assistant
+        if: matrix.dependencies == 'current'
+        run: uv run pytest
+      - name: Lint
+        if: matrix.dependencies == 'current'
+        run: uv run ruff check .
+      - name: Type check
+        if: matrix.dependencies == 'current'
+        run: uv run mypy
+      - name: Install minimum Home Assistant
+        if: matrix.dependencies == 'minimum'
+        run: |
+          uv venv .venv-min --python 3.14
+          uv pip install --python .venv-min/bin/python \
+            pytest-homeassistant-custom-component==0.13.357 \
+            PyTurboJPEG==1.8.3 mutagen==1.48.1 ha-ffmpeg==3.2.2
+      - name: Test Home Assistant 2026.8.3
+        if: matrix.dependencies == 'minimum'
+        run: .venv-min/bin/pytest

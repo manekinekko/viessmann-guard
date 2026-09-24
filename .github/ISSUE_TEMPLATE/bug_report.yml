@@ -1,0 +1,78 @@
+name: Bug report
+description: Report a reproducible problem using redacted or synthetic evidence.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Viessmann Guard is not a safety device. For equipment faults, follow the
+        manufacturer's instructions and contact a qualified professional.
+
+        Do not attach a raw Home Assistant diagnostic export or backup.
+        Remove credentials, SMTP secrets, recipient addresses, serial numbers,
+        location, private names, and identifying entity IDs.
+  - type: input
+    id: guard-version
+    attributes:
+      label: Viessmann Guard version
+      description: Include the release or commit and whether you used HACS or manual installation.
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version and installation type
+      description: Include Python version if you manage the Python environment yourself.
+      placeholder: Home Assistant 2026.8.3, Container
+    validations:
+      required: true
+  - type: input
+    id: source-version
+    attributes:
+      label: Source integration and version
+      description: Which existing integration provides flow, mode, and pump reports?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed and expected behavior
+      description: Include steps to reproduce and whether this followed a restart or options change.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Redacted source mapping, units, and reporting
+      description: |
+        Use neutral IDs. List flow unit, raw mode/pump/fault mappings, optional
+        pump-speed unit, and whether identical values are reported again.
+        Include individual freshness/status observations, not raw attributes.
+      placeholder: |
+        Flow: sensor.example_flow, L/min
+        Mode: sensor.example_mode, running=["heating"], excluded=["defrost"]
+        Pump: binary_sensor.example_pump, on=["on"], off=["off"]
+        Pump speed: not configured
+        Latest source reports: fresh / stale / unavailable
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal redacted or synthetic timeline
+      description: |
+        Include relevant rule values, state/reason codes, and timestamps.
+        Numerical examples are reproduction data, not manufacturer limits.
+        For email issues, include per-recipient status and attempt counts using
+        neutral labels, plus whether emails were enabled. Never include addresses.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed secrets, addresses, serial numbers, location, and identifying names.
+          required: true
+        - label: I have not attached a raw diagnostic export or Home Assistant backup.
+          required: true

@@ -1,0 +1,709 @@
+{
+  "title": "Viessmann Guard",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Automatic ViCare setup",
+        "description": "No supported ViCare heat pump was identified. Check that the native ViCare integration has enabled entities. Other source integrations and unrecognized equipment can use advanced manual setup. No settings are guessed.",
+        "menu_options": {
+          "manual": "Advanced manual setup"
+        }
+      },
+      "select_device": {
+        "title": "Choose the heat pump",
+        "description": "Each choice is a separate ViCare device with heat-pump telemetry, not a gateway. Only this device's sources will be monitored. If names are identical, give the devices distinct names in ViCare before choosing.",
+        "data": {
+          "device_id": "Heat pump"
+        }
+      },
+      "confirm": {
+        "title": "Your heat pump is ready for observation",
+        "description": "{summary}"
+      },
+      "manual": {
+        "title": "Map existing equipment sources",
+        "description": "Read-only monitoring of existing Home Assistant entities. No Viessmann credentials or extra API requests. Select the equipment devices first. Flow and mode are required; active diagnosis also needs a pump-running source. This is not a safety device.",
+        "data": {
+          "name": "Monitor name",
+          "device_ids": "Equipment devices",
+          "flow_entity": "Volumetric flow",
+          "mode_entity": "Operating mode",
+          "pump_entity": "Pump-running status",
+          "pump_speed_entity": "Pump speed",
+          "fault_entity": "Native fault status",
+          "supply_temperature_entity": "Supply temperature",
+          "return_temperature_entity": "Return temperature",
+          "pressure_entity": "Hydraulic pressure",
+          "outside_temperature_entity": "Outdoor temperature",
+          "compressor_entity": "Compressor status",
+          "valve_entity": "Valve status"
+        },
+        "data_description": {
+          "name": "A short name for this monitor, such as Demo Guard. Actual entity IDs may differ.",
+          "device_ids": "Only enabled sources belonging to these devices can be used.",
+          "flow_entity": "A finite, nonnegative number with an explicit supported volumetric unit. Never assume an absent unit.",
+          "mode_entity": "Map this entity's raw states to active, idle, or excluded modes in the next step.",
+          "pump_entity": "Needed for active flow diagnosis. Leaving it empty makes that diagnosis unavailable.",
+          "pump_speed_entity": "Optional numeric percentage from 0 to 100 with unit %. Used to compare similar pump operation.",
+          "fault_entity": "Optional. Requires explicit fault and clear values; a native fault does not identify its physical cause.",
+          "supply_temperature_entity": "Optional supply-side temperature for report context.",
+          "return_temperature_entity": "Optional return-side temperature for report context.",
+          "pressure_entity": "Optional circuit pressure for report context, not equipment control.",
+          "outside_temperature_entity": "Optional outdoor temperature for report context.",
+          "compressor_entity": "Optional compressor telemetry. No compressor command is sent.",
+          "valve_entity": "Optional valve telemetry. No valve command is sent."
+        }
+      },
+      "rules": {
+        "title": "Set evidence and comparison rules",
+        "description": "Use the installation-specific minimum from reliable equipment documentation or a qualified professional. Software defaults and demo values are not manufacturer limits. Map raw source states, exclude defrost, and keep incompatible categories separate.",
+        "data": {
+          "min_flow_l_min": "Installation minimum flow (L/min)",
+          "absolute_persistence_s": "Low-flow persistence (seconds)",
+          "relative_drop_pct": "Relative decline threshold (%)",
+          "relative_persistence_s": "Relative-decline persistence (seconds)",
+          "hysteresis_pct": "Recovery hysteresis (%)",
+          "recovery_s": "Healthy recovery duration (seconds)",
+          "startup_grace_s": "Startup grace (seconds)",
+          "stale_after_s": "Report freshness limit (seconds)",
+          "calibration_samples": "Calibration sample count",
+          "calibration_duration_s": "Calibration duration (seconds)",
+          "pump_tolerance_pct": "Pump-speed tolerance (percentage points)",
+          "running_modes": "Active mode values",
+          "idle_modes": "Idle mode values",
+          "excluded_modes": "Excluded mode values",
+          "pump_on_values": "Pump-running values",
+          "pump_off_values": "Pump-stopped values",
+          "fault_values": "Active fault values",
+          "fault_clear_values": "Clear fault values"
+        },
+        "data_description": {
+          "min_flow_l_min": "Optional installation-specific limit. Leave blank if unknown: absolute alerts stay disabled. No universal or manufacturer minimum is supplied.",
+          "absolute_persistence_s": "How long eligible low-flow observations must persist before an urgent incident.",
+          "relative_drop_pct": "Decline against a fixed, explicitly confirmed healthy reference in comparable conditions.",
+          "relative_persistence_s": "How long a comparable relative decline must persist before a watch incident.",
+          "hysteresis_pct": "Recovery margin. Must be smaller than the relative decline threshold.",
+          "recovery_s": "Sustained fresh, eligible healthy evidence required for recovery. Maintenance actions do not replace it.",
+          "startup_grace_s": "Wait after startup or a change of operating context before evaluating flow.",
+          "stale_after_s": "Age of an HA report, not the physical measurement. An unchanged cached state may become stale.",
+          "calibration_samples": "Minimum fresh observations after explicit healthy calibration confirmation.",
+          "calibration_duration_s": "Minimum observation span for a stable healthy reference. No automatic downward relearning.",
+          "pump_tolerance_pct": "Maximum comparable speed difference when an optional percentage speed source is configured.",
+          "running_modes": "At least one raw mode value. Unknown and unmapped modes are not healthy evidence.",
+          "idle_modes": "Raw modes in which active flow diagnosis is not appropriate.",
+          "excluded_modes": "Raw values for defrost and other incomparable operation. Never use these for calibration.",
+          "pump_on_values": "Raw values that explicitly confirm the pump is running.",
+          "pump_off_values": "Raw values that explicitly confirm the pump is stopped.",
+          "fault_values": "Required when a fault source is configured. Must not overlap clear values.",
+          "fault_clear_values": "Required when a fault source is configured. Unmapped faults are not treated as clear."
+        }
+      },
+      "emails": {
+        "title": "Choose native SMTP recipients",
+        "description": "Configure SMTP and one recipient entity per address in Home Assistant first. Do not copy passwords here. Emails start off, including tests. Disabling cancels pending work but cannot recall an in-flight SMTP message.",
+        "data": {
+          "emails_enabled": "Enable emails",
+          "recipients": "SMTP recipient entities",
+          "reminder_hours": "Reminder interval (hours)",
+          "watch_email": "Send watch-stage emails",
+          "language": "Email and report language"
+        },
+        "data_description": {
+          "emails_enabled": "Same persistent setting as the email switch. Re-enabling requires fresh confirmation of the current incident, not an old backlog.",
+          "recipients": "Select up to 20 native SMTP recipient entities with useful neutral names. Registry/subentry identity is checked; equivalent aliases cannot always be detected.",
+          "reminder_hours": "Reminder interval from 1 to 720 hours. Snooze pauses reminders only, not initial alert retries or urgent escalation. It does not resolve an incident.",
+          "watch_email": "Also notify on a sustained relative-decline watch. Off by default.",
+          "language": "English by default for new monitors. Independent of your HA interface. Applies to all emails and local reports; changing it does not enable emails or resend notifications."
+        }
+      },
+      "report": {
+        "title": "Review report contents",
+        "description": "Reports use a bounded inventory from the selected devices, not raw diagnostics. Review friendly names and selected values for privacy. Each measurement keeps its own availability, report timestamp, and age.",
+        "data": {
+          "report_entities": "Additional report entities",
+          "report_exclude": "Inventory exclusions"
+        },
+        "data_description": {
+          "report_entities": "Explicit inclusions from the selected devices, up to 150. Do not select private identifiers or sensitive free text.",
+          "report_exclude": "Remove unwanted inventory items. Explicit diagnostic source mappings remain visible even if also excluded."
+        }
+      }
+    },
+    "error": {
+      "source_changed": "Sources changed during setup. Review the updated selection and confirm again.",
+      "already_configured": "This device already has a Viessmann Guard monitor.",
+      "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
+      "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
+      "invalid_device": "Select at least one existing equipment device.",
+      "required_source": "Select an entity for this required source.",
+      "invalid_source": "Choose an enabled source on a selected device, in a supported domain, and not from Viessmann Guard.",
+      "source_unavailable": "This source has no usable current state. Restore its reports before selecting it.",
+      "invalid_flow_unit": "Flow must be a finite nonnegative number with a supported explicit volumetric unit.",
+      "invalid_speed_unit": "Pump speed must be a finite number from 0 to 100 with unit %.",
+      "invalid_measurement_unit": "Use a finite value with a supported temperature or pressure unit (no negative pressure).",
+      "required_modes": "Enter at least one raw active-mode value.",
+      "overlapping_values": "These value groups overlap. Use distinct values for incompatible states.",
+      "required_fault_mapping": "Provide both active-fault and clear-fault values for the configured fault source.",
+      "invalid_hysteresis": "Recovery hysteresis must be smaller than the relative decline threshold.",
+      "invalid_smtp_recipient": "Choose an enabled native SMTP notify entity with a valid recipient subentry.",
+      "too_many_recipients": "Select no more than 20 recipient entities.",
+      "duplicate_recipient": "Two selected entities identify the same SMTP recipient. Keep only one.",
+      "required_recipient": "Select at least one valid SMTP recipient before enabling emails.",
+      "invalid_report_entity": "Choose an eligible, non-private entity belonging to a selected device.",
+      "invalid_language": "Choose English, French, Spanish, or German."
+    },
+    "abort": {
+      "already_configured": "This heat pump already has a Viessmann Guard monitor. Use its options instead.",
+      "source_changed": "The selected ViCare heat pump is no longer available. Restore its integration and try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Viessmann Guard options",
+        "description": "Update sources, detection evidence, email permission, or report scope. No option controls the heat pump.",
+        "menu_options": {
+          "minimum": "Optional installation minimum flow",
+          "emails": "Emails and recipients",
+          "sources": "Equipment sources",
+          "rules": "Detection rules",
+          "report": "Report contents"
+        }
+      },
+      "minimum": {
+        "title": "Installation minimum flow",
+        "description": "Enter only the actual minimum supplied by the manufacturer or installer, in L/min. Leave blank to disable absolute alerts. Changing this rule invalidates the learned reference, but cannot clear an active incident. No equipment settings are changed.",
+        "data": {
+          "min_flow_l_min": "Minimum flow (L/min)"
+        }
+      },
+      "sources": {
+        "title": "Map existing equipment sources",
+        "description": "Select existing entities on the equipment devices. Active flow diagnosis needs pump-running evidence. No Viessmann credentials or extra API requests.",
+        "data": {
+          "name": "Monitor name",
+          "device_ids": "Equipment devices",
+          "flow_entity": "Volumetric flow",
+          "mode_entity": "Operating mode",
+          "pump_entity": "Pump-running status",
+          "pump_speed_entity": "Pump speed",
+          "fault_entity": "Native fault status",
+          "supply_temperature_entity": "Supply temperature",
+          "return_temperature_entity": "Return temperature",
+          "pressure_entity": "Hydraulic pressure",
+          "outside_temperature_entity": "Outdoor temperature",
+          "compressor_entity": "Compressor status",
+          "valve_entity": "Valve status"
+        },
+        "data_description": {
+          "name": "A short name for this monitor. Actual entity IDs may differ after renaming or because an ID already exists; translated labels do not change the default suffix.",
+          "device_ids": "Only enabled sources belonging to these devices can be used.",
+          "flow_entity": "A finite, nonnegative number with an explicit supported volumetric unit.",
+          "mode_entity": "Raw states must match the configured active, idle, and excluded mode values.",
+          "pump_entity": "Needed for active flow diagnosis. Leaving it empty makes that diagnosis unavailable.",
+          "pump_speed_entity": "Optional numeric percentage from 0 to 100 with unit %, for comparable pump operation.",
+          "fault_entity": "Optional. Configure both fault and clear values in Detection rules.",
+          "supply_temperature_entity": "Optional supply-side temperature for report context.",
+          "return_temperature_entity": "Optional return-side temperature for report context.",
+          "pressure_entity": "Optional circuit pressure for report context.",
+          "outside_temperature_entity": "Optional outdoor temperature for report context.",
+          "compressor_entity": "Optional compressor telemetry, never a command.",
+          "valve_entity": "Optional valve telemetry, never a command."
+        }
+      },
+      "rules": {
+        "title": "Set evidence and comparison rules",
+        "description": "Use an installation-specific minimum, not a demo value. Map raw source states and exclude defrost. Unknown, stale, or incomparable observations never prove recovery.",
+        "data": {
+          "min_flow_l_min": "Installation minimum flow (L/min)",
+          "absolute_persistence_s": "Low-flow persistence (seconds)",
+          "relative_drop_pct": "Relative decline threshold (%)",
+          "relative_persistence_s": "Relative-decline persistence (seconds)",
+          "hysteresis_pct": "Recovery hysteresis (%)",
+          "recovery_s": "Healthy recovery duration (seconds)",
+          "startup_grace_s": "Startup grace (seconds)",
+          "stale_after_s": "Report freshness limit (seconds)",
+          "calibration_samples": "Calibration sample count",
+          "calibration_duration_s": "Calibration duration (seconds)",
+          "pump_tolerance_pct": "Pump-speed tolerance (percentage points)",
+          "running_modes": "Active mode values",
+          "idle_modes": "Idle mode values",
+          "excluded_modes": "Excluded mode values",
+          "pump_on_values": "Pump-running values",
+          "pump_off_values": "Pump-stopped values",
+          "fault_values": "Active fault values",
+          "fault_clear_values": "Clear fault values"
+        },
+        "data_description": {
+          "min_flow_l_min": "Obtain this limit from reliable equipment documentation or a qualified professional. No manufacturer minimum is supplied.",
+          "absolute_persistence_s": "Required duration of eligible low-flow evidence before an urgent incident.",
+          "relative_drop_pct": "Decline against the fixed, explicitly confirmed healthy reference.",
+          "relative_persistence_s": "Required duration of comparable decline evidence before a watch incident.",
+          "hysteresis_pct": "Recovery margin, smaller than the relative decline threshold.",
+          "recovery_s": "Required duration of fresh healthy observations, not time spent offline.",
+          "startup_grace_s": "Wait after startup or an operating-context change.",
+          "stale_after_s": "HA report age limit, not the controller's physical measurement age. Cached unchanged values can become stale.",
+          "calibration_samples": "Minimum fresh observations after explicit healthy calibration confirmation.",
+          "calibration_duration_s": "Minimum healthy observation span. The reference does not automatically drift down.",
+          "pump_tolerance_pct": "Allowed speed difference in percentage points for comparable operation.",
+          "running_modes": "At least one explicit raw active-mode value.",
+          "idle_modes": "Raw modes in which active flow diagnosis is paused.",
+          "excluded_modes": "Include defrost and other incomparable raw modes. They cannot support calibration.",
+          "pump_on_values": "Raw values confirming that the pump is running.",
+          "pump_off_values": "Raw values confirming that the pump is stopped.",
+          "fault_values": "Explicit active-fault values, required if a fault source is selected.",
+          "fault_clear_values": "Explicit clear-fault values, disjoint from active-fault values."
+        }
+      },
+      "emails": {
+        "title": "Emails and native SMTP recipients",
+        "description": "Use recipient entities configured in Home Assistant's SMTP UI. No passwords belong here. OFF also blocks tests and pending retries, but cannot recall in-flight SMTP.",
+        "data": {
+          "emails_enabled": "Enable emails",
+          "recipients": "SMTP recipient entities",
+          "reminder_hours": "Reminder interval (hours)",
+          "watch_email": "Send watch-stage emails",
+          "language": "Email and report language"
+        },
+        "data_description": {
+          "emails_enabled": "Shared with the persistent email switch. Re-enable only sends after fresh confirmation of the current incident.",
+          "recipients": "Up to 20 validated native SMTP recipients. Use neutral friendly names without addresses. Domain case is normalized; local-part case is preserved.",
+          "reminder_hours": "Reminder interval from 1 to 720 hours. A reminder pause does not block initial alert retries or urgent escalation.",
+          "watch_email": "Opt in to emails for sustained relative-decline watch incidents.",
+          "language": "English by default for new monitors. Independent of your HA interface. Applies to all emails and local reports; changing it does not enable emails or resend notifications."
+        }
+      },
+      "report": {
+        "title": "Review report contents",
+        "description": "Keep reports device-scoped and private. No raw diagnostics or arbitrary attributes are included. Review neutral names and per-measurement freshness.",
+        "data": {
+          "report_entities": "Additional report entities",
+          "report_exclude": "Inventory exclusions"
+        },
+        "data_description": {
+          "report_entities": "Up to 150 eligible explicit inclusions. Do not include private identifiers or sensitive text.",
+          "report_exclude": "Exclude unwanted inventory items. Explicit diagnostic source mappings remain visible."
+        }
+      }
+    },
+    "error": {
+      "already_configured": "This device already has a Viessmann Guard monitor.",
+      "invalid_name": "Use a nonblank name of at most 60 characters, without line breaks.",
+      "invalid_number": "Enter a finite number within the displayed bounds. Sample counts must be whole numbers.",
+      "invalid_device": "Select at least one existing equipment device.",
+      "required_source": "Select an entity for this required source.",
+      "invalid_source": "Choose an enabled source on a selected device, in a supported domain, and not from Viessmann Guard.",
+      "source_unavailable": "This source has no usable current state. Restore its reports before selecting it.",
+      "invalid_flow_unit": "Flow must be a finite nonnegative number with a supported explicit volumetric unit.",
+      "invalid_speed_unit": "Pump speed must be a finite number from 0 to 100 with unit %.",
+      "invalid_measurement_unit": "Use a finite value with a supported temperature or pressure unit (no negative pressure).",
+      "required_modes": "Enter at least one raw active-mode value.",
+      "overlapping_values": "These value groups overlap. Use distinct values for incompatible states.",
+      "required_fault_mapping": "Provide both active-fault and clear-fault values for the configured fault source.",
+      "invalid_hysteresis": "Recovery hysteresis must be smaller than the relative decline threshold.",
+      "invalid_smtp_recipient": "Choose an enabled native SMTP notify entity with a valid recipient subentry.",
+      "too_many_recipients": "Select no more than 20 recipient entities.",
+      "duplicate_recipient": "Two selected entities identify the same SMTP recipient. Keep only one.",
+      "required_recipient": "Select at least one valid SMTP recipient before enabling emails.",
+      "invalid_report_entity": "Choose an eligible, non-private entity belonging to a selected device.",
+      "invalid_language": "Choose English, French, Spanish, or German."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "State",
+        "state": {
+          "normal": "Normal or idle; check the reason",
+          "learning": "Startup or calibration",
+          "watch": "Watch",
+          "urgent": "Urgent",
+          "diagnostic_unavailable": "Diagnosis unavailable"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Reason code",
+            "state": {
+              "awaiting_observations": "Waiting for source observations",
+              "minimum_not_configured": "Observation / relative monitoring only: minimum flow not configured",
+              "clock_moved_backwards": "Clock moved backwards; fresh evidence is required",
+              "flow_unavailable": "Flow report is missing, unavailable, or not usable",
+              "flow_stale": "Flow report is stale",
+              "mode_unavailable": "Operating-mode report is missing or not usable",
+              "mode_stale": "Operating-mode report is stale",
+              "pump_unavailable": "Pump-running report is missing or not usable",
+              "pump_stale": "Pump-running report is stale",
+              "pump_speed_unavailable": "Pump-speed report is missing or not usable",
+              "pump_speed_stale": "Pump-speed report is stale",
+              "fault_unavailable": "Configured fault report is missing or not usable",
+              "fault_stale": "Configured fault report is stale",
+              "native_fault": "An explicitly mapped native fault is active; its cause needs investigation",
+              "fault_unmapped": "Fault state does not match an explicit fault or clear value",
+              "pump_not_configured": "No pump-running source is configured; active diagnosis is unavailable",
+              "mode_idle": "Equipment is in an explicitly mapped idle mode",
+              "mode_excluded": "Mode is excluded, such as defrost; diagnosis is paused",
+              "mode_unmapped": "Operating mode is not explicitly mapped",
+              "pump_off": "Pump is stopped; active flow diagnosis is paused",
+              "pump_unmapped": "Pump state is neither explicitly running nor stopped",
+              "pump_speed_invalid": "Pump speed or its percentage unit is invalid",
+              "flow_out_of_order": "Flow report arrived out of timestamp order",
+              "flow_changed_without_report": "Flow changed without a new report timestamp",
+              "flow_invalid": "Flow value or its volumetric unit is invalid",
+              "awaiting_post_restart_reports": "Waiting for fresh reports after restart",
+              "startup_grace": "Waiting for stable circulation after startup or a context change",
+              "absolute_low_flow": "Sustained flow below the configured installation minimum",
+              "relative_flow_decline": "Sustained decline against the confirmed healthy reference",
+              "baseline_context_mismatch": "Mode or pump speed is not comparable with the fixed reference",
+              "recovery_pending": "Healthy evidence is accumulating; recovery is not yet confirmed",
+              "incident_pending_revalidation": "Existing incident needs fresh confirmation",
+              "recovery_hysteresis": "Flow has not cleared the recovery margin",
+              "calibration_sampling": "Collecting eligible samples after healthy calibration confirmation",
+              "calibration_complete": "Healthy calibration completed; fixed reference accepted",
+              "calibration_cancelled_by_cleaning": "Cleaning canceled unfinished calibration; confirm healthy operation again to restart it",
+              "absolute_low_pending": "Flow is below the minimum but persistence is not yet met",
+              "relative_decline_pending": "Relative decline has not yet met its persistence duration",
+              "baseline_unconfirmed": "No confirmed healthy reference; relative monitoring is unavailable.",
+              "healthy": "Comparable measurements meet the configured healthy criteria"
+            }
+          },
+          "reason_text": {
+            "name": "Reason explanation"
+          },
+          "incident_id": {
+            "name": "Incident ID"
+          },
+          "incident_severity": {
+            "name": "Incident severity",
+            "state": {
+              "watch": "Watch",
+              "urgent": "Urgent"
+            }
+          },
+          "incident_confirmed": {
+            "name": "Incident freshly confirmed"
+          },
+          "acknowledged": {
+            "name": "Acknowledged"
+          },
+          "snoozed_until": {
+            "name": "Reminders paused until"
+          },
+          "anomaly_duration_seconds": {
+            "name": "Anomaly duration (seconds)"
+          },
+          "engine_phase": {
+            "name": "Engine phase",
+            "state": {
+              "normal": "Normal or idle; check the reason",
+              "learning": "Startup or calibration",
+              "watch": "Watch",
+              "urgent": "Urgent",
+              "diagnostic_unavailable": "Diagnosis unavailable"
+            }
+          },
+          "absolute_alerts_configured": {
+            "name": "Absolute alerts configured"
+          },
+          "limitations": {
+            "name": "Limitation codes"
+          },
+          "limitations_text": {
+            "name": "Limitations"
+          },
+          "source_statuses": {
+            "name": "Discovered source statuses"
+          }
+        }
+      },
+      "reason": {
+        "name": "Reason",
+        "state": {
+          "awaiting_observations": "Waiting for source observations",
+          "minimum_not_configured": "Observation / relative monitoring only: minimum flow not configured",
+          "clock_moved_backwards": "Clock moved backwards; fresh evidence is required",
+          "flow_unavailable": "Flow report is missing, unavailable, or not usable",
+          "flow_stale": "Flow report is stale",
+          "mode_unavailable": "Operating-mode report is missing or not usable",
+          "mode_stale": "Operating-mode report is stale",
+          "pump_unavailable": "Pump-running report is missing or not usable",
+          "pump_stale": "Pump-running report is stale",
+          "pump_speed_unavailable": "Pump-speed report is missing or not usable",
+          "pump_speed_stale": "Pump-speed report is stale",
+          "fault_unavailable": "Configured fault report is missing or not usable",
+          "fault_stale": "Configured fault report is stale",
+          "native_fault": "An explicitly mapped native fault is active; its cause needs investigation",
+          "fault_unmapped": "Fault state does not match an explicit fault or clear value",
+          "pump_not_configured": "No pump-running source is configured; active diagnosis is unavailable",
+          "mode_idle": "Equipment is in an explicitly mapped idle mode",
+          "mode_excluded": "Mode is excluded, such as defrost; diagnosis is paused",
+          "mode_unmapped": "Operating mode is not explicitly mapped",
+          "pump_off": "Pump is stopped; active flow diagnosis is paused",
+          "pump_unmapped": "Pump state is neither explicitly running nor stopped",
+          "pump_speed_invalid": "Pump speed or its percentage unit is invalid",
+          "flow_out_of_order": "Flow report arrived out of timestamp order",
+          "flow_changed_without_report": "Flow changed without a new report timestamp",
+          "flow_invalid": "Flow value or its volumetric unit is invalid",
+          "awaiting_post_restart_reports": "Waiting for fresh reports after restart",
+          "startup_grace": "Waiting for stable circulation after startup or a context change",
+          "absolute_low_flow": "Sustained flow below the configured installation minimum",
+          "relative_flow_decline": "Sustained decline against the confirmed healthy reference",
+          "baseline_context_mismatch": "Mode or pump speed is not comparable with the fixed reference",
+          "recovery_pending": "Healthy evidence is accumulating; recovery is not yet confirmed",
+          "incident_pending_revalidation": "Existing incident needs fresh confirmation",
+          "recovery_hysteresis": "Flow has not cleared the recovery margin",
+          "calibration_sampling": "Collecting eligible samples after healthy calibration confirmation",
+          "calibration_complete": "Healthy calibration completed; fixed reference accepted",
+          "calibration_cancelled_by_cleaning": "Cleaning canceled unfinished calibration; confirm healthy operation again to restart it",
+          "absolute_low_pending": "Flow is below the minimum but persistence is not yet met",
+          "relative_decline_pending": "Relative decline has not yet met its persistence duration",
+          "baseline_unconfirmed": "No confirmed healthy reference; relative monitoring is unavailable.",
+          "healthy": "Comparable measurements meet the configured healthy criteria"
+        }
+      },
+      "current_flow": {
+        "name": "Current flow"
+      },
+      "reference_flow": {
+        "name": "Reference flow"
+      },
+      "minimum_flow": {
+        "name": "Minimum flow"
+      },
+      "decline": {
+        "name": "Decline"
+      },
+      "telemetry_updated": {
+        "name": "Telemetry updated"
+      },
+      "last_cleaned": {
+        "name": "Last cleaned"
+      },
+      "email_status": {
+        "name": "Email status",
+        "state": {
+          "disabled": "Emails disabled",
+          "ready": "Ready",
+          "pending": "Queued",
+          "retry": "Waiting to retry",
+          "sending": "Sending",
+          "accepted": "SMTP action completed, inbox delivery unconfirmed",
+          "failed": "Failed",
+          "unknown": "Outcome unknown; not automatically resent",
+          "storage_error": "Storage error; delivery cannot be safely recorded"
+        },
+        "state_attributes": {
+          "recipients": {
+            "name": "Per-recipient outcomes"
+          }
+        }
+      },
+      "recipient_status": {
+        "name": "Email: {recipient}",
+        "state": {
+          "disabled": "Emails disabled",
+          "ready": "Ready",
+          "pending": "Queued",
+          "retry": "Waiting to retry",
+          "sending": "Sending",
+          "accepted": "SMTP action completed, inbox delivery unconfirmed",
+          "failed": "Failed",
+          "unknown": "Outcome unknown; not automatically resent",
+          "storage_error": "Storage error"
+        },
+        "state_attributes": {
+          "name": {
+            "name": "Neutral recipient label"
+          },
+          "status": {
+            "name": "Delivery status",
+            "state": {
+              "disabled": "Emails disabled",
+              "ready": "Ready",
+              "pending": "Queued",
+              "retry": "Waiting to retry",
+              "sending": "Sending",
+              "accepted": "SMTP action completed, inbox delivery unconfirmed",
+              "failed": "Failed",
+              "unknown": "Outcome unknown; not automatically resent",
+              "storage_error": "Storage error; delivery cannot be safely recorded"
+            }
+          },
+          "attempts": {
+            "name": "Attempts"
+          },
+          "updated_at": {
+            "name": "Status updated"
+          },
+          "next_attempt_at": {
+            "name": "Next attempt"
+          },
+          "accepted_at": {
+            "name": "SMTP completion time"
+          },
+          "error": {
+            "name": "Redacted error code"
+          },
+          "kind": {
+            "name": "Notification kind",
+            "state": {
+              "watch": "Flow decline watch",
+              "urgent": "Urgent flow alert",
+              "reminder": "Flow alert reminder",
+              "recovery": "Flow recovery",
+              "test": "Test email"
+            }
+          },
+          "key": {
+            "name": "Notification key"
+          }
+        }
+      }
+    },
+    "switch": {
+      "emails_enabled": {
+        "name": "Enable emails"
+      }
+    },
+    "button": {
+      "acknowledge": {
+        "name": "Acknowledge"
+      },
+      "snooze": {
+        "name": "Pause reminders for 24 hours"
+      },
+      "record_cleaning": {
+        "name": "Record cleaning"
+      },
+      "confirm_calibration": {
+        "name": "I confirm healthy operation: calibrate"
+      },
+      "test_email": {
+        "name": "Send test email"
+      }
+    }
+  },
+  "exceptions": {
+    "entry_unavailable": {
+      "message": "This Viessmann Guard monitor is not loaded. Load the integration before using this action."
+    },
+    "emails_disabled": {
+      "message": "Emails are disabled, including tests. Enable emails deliberately before requesting a test."
+    },
+    "required_recipient": {
+      "message": "Select at least one valid native SMTP recipient before enabling or testing emails."
+    },
+    "invalid_smtp_recipient": {
+      "message": "A selected recipient is not an enabled native SMTP entity with a valid recipient subentry."
+    },
+    "too_many_recipients": {
+      "message": "Select no more than 20 SMTP recipient entities."
+    },
+    "duplicate_recipient": {
+      "message": "Two selected entities identify the same SMTP recipient. Keep only one."
+    },
+    "smtp_error": {
+      "message": "The SMTP action failed for at least one recipient. Review individual outcomes; do not assume successful recipients need another send."
+    },
+    "confirmation_required": {
+      "message": "Healthy calibration requires confirmed: true after independently checking that operation is healthy and comparable."
+    },
+    "no_incident_ack": {
+      "message": "There is no active incident to acknowledge"
+    },
+    "no_incident_snooze": {
+      "message": "There is no active incident to snooze"
+    },
+    "calibration_incident": {
+      "message": "Calibration is not allowed while an incident is active"
+    },
+    "calibration_progress": {
+      "message": "Calibration is already in progress"
+    },
+    "calibration_unhealthy": {
+      "message": "Calibration requires fresh, healthy, running telemetry after startup"
+    },
+    "action_failed": {
+      "message": "The action could not be completed. Check the diagnostic reason and Home Assistant logs."
+    }
+  },
+  "services": {
+    "get_report": {
+      "name": "Read the observation report",
+      "description": "Return a report for the selected equipment locally, with no email, queue change or equipment command. Works while emails are OFF.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard entry whose selected equipment is included."
+        }
+      }
+    },
+    "acknowledge": {
+      "name": "Acknowledge incident",
+      "description": "Mark the current incident as seen. This does not resolve it or control the heat pump.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard configuration entry."
+        }
+      }
+    },
+    "snooze": {
+      "name": "Pause reminders",
+      "description": "Pause reminders only, not initial alert retries or urgent escalation. Expiry is not recovery and does not change the reference.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard configuration entry."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Reminder pause duration from 1 to 168 hours. The dashboard button uses 24 hours."
+        }
+      }
+    },
+    "record_cleaning": {
+      "name": "Record completed cleaning",
+      "description": "Record a maintenance date and cancel incomplete calibration. This does not prove recovery, clear an incident, or replace the accepted baseline.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard configuration entry."
+        }
+      }
+    },
+    "confirm_calibration": {
+      "name": "Confirm healthy calibration",
+      "description": "Explicitly authorize a fixed reference from subsequent healthy, fresh, comparable observations. Do not confirm merely because cleaning was recorded.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard configuration entry."
+        },
+        "confirmed": {
+          "name": "Healthy operation confirmed",
+          "description": "Must be true. Confirm independently that the equipment is healthy and operating in comparable conditions."
+        }
+      }
+    },
+    "test_email": {
+      "name": "Send test email",
+      "description": "Request a test for configured recipients. Emails must be enabled. SMTP completion does not guarantee inbox delivery.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "The Viessmann Guard configuration entry."
+        }
+      }
+    }
+  },
+  "selector": {
+    "email_language": {
+      "options": {
+        "en": "English",
+        "fr": "Français",
+        "es": "Español",
+        "de": "Deutsch"
+      }
+    }
+  }
+}

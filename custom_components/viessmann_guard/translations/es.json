@@ -1,0 +1,709 @@
+{
+  "title": "Viessmann Guard",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuración automática de ViCare",
+        "description": "No se ha identificado una bomba de calor ViCare compatible. Compruebe las entidades de la integración ViCare nativa. Para otros equipos, use la configuración manual avanzada. No se suponen ajustes.",
+        "menu_options": {
+          "manual": "Configuración manual avanzada"
+        }
+      },
+      "select_device": {
+        "title": "Seleccione la bomba de calor",
+        "description": "Cada opción es un dispositivo ViCare distinto con telemetría de bomba de calor, no una pasarela. Solo se supervisan sus fuentes. Si los nombres coinciden, asigne nombres distintos en ViCare antes de elegir.",
+        "data": {
+          "device_id": "Bomba de calor"
+        }
+      },
+      "confirm": {
+        "title": "Su bomba de calor está lista para la observación",
+        "description": "{summary}"
+      },
+      "manual": {
+        "title": "Asociar fuentes del equipo",
+        "description": "Seguimiento de solo lectura de entidades existentes. Sin credenciales Viessmann ni consultas API adicionales. Seleccione los dispositivos; caudal y modo son obligatorios. El diagnóstico activo requiere una fuente del circulador. No es un dispositivo de seguridad.",
+        "data": {
+          "name": "Nombre del monitor",
+          "device_ids": "Dispositivos del equipo",
+          "flow_entity": "Caudal volumétrico",
+          "mode_entity": "Modo de funcionamiento",
+          "pump_entity": "Estado de funcionamiento del circulador",
+          "pump_speed_entity": "Velocidad del circulador",
+          "fault_entity": "Estado de fallo nativo",
+          "supply_temperature_entity": "Temperatura de impulsión",
+          "return_temperature_entity": "Temperatura de retorno",
+          "pressure_entity": "Presión hidráulica",
+          "outside_temperature_entity": "Temperatura exterior",
+          "compressor_entity": "Estado del compresor",
+          "valve_entity": "Estado de la válvula"
+        },
+        "data_description": {
+          "name": "Nombre breve, por ejemplo Demo Guard. Los ID reales de entidad pueden variar.",
+          "device_ids": "Solo se admiten fuentes activadas de estos dispositivos.",
+          "flow_entity": "Número finito no negativo con una unidad volumétrica explícita compatible. No suponga una unidad ausente.",
+          "mode_entity": "Asocie los estados originales con modos activos, en reposo o excluidos en el siguiente paso.",
+          "pump_entity": "Necesario para el diagnóstico activo de caudal. Si se omite, ese diagnóstico no estará disponible.",
+          "pump_speed_entity": "Porcentaje opcional de 0 a 100 con unidad %. Permite comparar condiciones similares de circulación.",
+          "fault_entity": "Opcional. Requiere valores explícitos de fallo y ausencia de fallo. Un fallo nativo no identifica la causa física.",
+          "supply_temperature_entity": "Temperatura de impulsión opcional para el informe.",
+          "return_temperature_entity": "Temperatura de retorno opcional para el informe.",
+          "pressure_entity": "Presión opcional del circuito para el informe, sin controlar el equipo.",
+          "outside_temperature_entity": "Temperatura exterior opcional para el informe.",
+          "compressor_entity": "Telemetría opcional del compresor. No se envían órdenes al compresor.",
+          "valve_entity": "Telemetría opcional de válvula. No se envían órdenes a la válvula."
+        }
+      },
+      "rules": {
+        "title": "Definir reglas de evaluación y comparación",
+        "description": "Use el mínimo específico de la instalación indicado por documentación fiable o un profesional cualificado. Los valores de ejemplo no son límites del fabricante. Asocie estados originales, excluya el desescarche y separe las categorías incompatibles.",
+        "data": {
+          "min_flow_l_min": "Caudal mínimo de la instalación (L/min)",
+          "absolute_persistence_s": "Persistencia del caudal bajo (s)",
+          "relative_drop_pct": "Umbral de descenso relativo (%)",
+          "relative_persistence_s": "Persistencia del descenso relativo (s)",
+          "hysteresis_pct": "Histéresis de recuperación (%)",
+          "recovery_s": "Duración de recuperación saludable (s)",
+          "startup_grace_s": "Espera de arranque (s)",
+          "stale_after_s": "Límite de antigüedad del informe (s)",
+          "calibration_samples": "Número de muestras de calibración",
+          "calibration_duration_s": "Duración de calibración (s)",
+          "pump_tolerance_pct": "Tolerancia de velocidad (puntos porcentuales)",
+          "running_modes": "Valores de modos activos",
+          "idle_modes": "Valores de modos en reposo",
+          "excluded_modes": "Valores de modos excluidos",
+          "pump_on_values": "Valores de bomba en marcha",
+          "pump_off_values": "Valores de bomba parada",
+          "fault_values": "Valores de fallo activo",
+          "fault_clear_values": "Valores sin fallo"
+        },
+        "data_description": {
+          "min_flow_l_min": "Límite opcional de la instalación. Déjelo vacío si se desconoce: las alertas absolutas permanecerán desactivadas. No se proporciona ningún mínimo universal ni del fabricante.",
+          "absolute_persistence_s": "Duración necesaria de observaciones válidas de caudal bajo antes de un incidente urgente.",
+          "relative_drop_pct": "Descenso respecto a una referencia saludable fija y confirmada, en condiciones comparables.",
+          "relative_persistence_s": "Duración de un descenso relativo comparable antes de un incidente de vigilancia.",
+          "hysteresis_pct": "Margen de recuperación, inferior al umbral de descenso relativo.",
+          "recovery_s": "Se requieren mediciones recientes, válidas y saludables durante este tiempo. El mantenimiento no las sustituye.",
+          "startup_grace_s": "Espera tras el arranque o un cambio de contexto antes de evaluar el caudal.",
+          "stale_after_s": "Antigüedad del informe HA, no de la medición física. Un valor en caché sin cambios puede quedar obsoleto.",
+          "calibration_samples": "Número mínimo de observaciones recientes tras confirmar condiciones saludables.",
+          "calibration_duration_s": "Duración mínima para una referencia saludable estable. No se reaprende automáticamente a la baja.",
+          "pump_tolerance_pct": "Diferencia máxima de velocidad para comparar condiciones, si se configura una fuente porcentual.",
+          "running_modes": "Al menos un valor original de modo activo. Los modos desconocidos no demuestran condiciones saludables.",
+          "idle_modes": "Modos originales en los que no procede el diagnóstico activo de caudal.",
+          "excluded_modes": "Valores originales de desescarche u operación no comparable. Nunca se usan para calibrar.",
+          "pump_on_values": "Valores originales que confirman explícitamente el funcionamiento de la bomba.",
+          "pump_off_values": "Valores originales que confirman explícitamente que la bomba está parada.",
+          "fault_values": "Obligatorio si hay fuente de fallo. No debe coincidir con los valores sin fallo.",
+          "fault_clear_values": "Obligatorio si hay fuente de fallo. Los estados sin correspondencia no se consideran ausencia de fallo."
+        }
+      },
+      "emails": {
+        "title": "Seleccionar destinatarios SMTP nativos",
+        "description": "Configure SMTP y una entidad por dirección en Home Assistant primero. No introduzca contraseñas aquí. Los emails están desactivados, incluidas las pruebas. Desactivar cancela los envíos pendientes, pero no retira mensajes SMTP en curso.",
+        "data": {
+          "emails_enabled": "Activar emails",
+          "recipients": "Entidades de destinatarios SMTP",
+          "reminder_hours": "Intervalo de recordatorio (horas)",
+          "watch_email": "Enviar emails de vigilancia",
+          "language": "Idioma de emails e informes"
+        },
+        "data_description": {
+          "emails_enabled": "Mismo ajuste persistente que el interruptor. Reactivar requiere confirmación reciente del incidente actual, sin reproducir mensajes antiguos.",
+          "recipients": "Seleccione hasta 20 destinatarios SMTP nativos con nombres neutros. Se comprueban las identidades del registro y de las subentradas; no siempre se detectan alias equivalentes.",
+          "reminder_hours": "De 1 a 720 horas. Posponer afecta solo a recordatorios, no a reintentos iniciales ni a escaladas urgentes. No resuelve el incidente.",
+          "watch_email": "También notifica descensos relativos persistentes. Desactivado por defecto.",
+          "language": "Inglés por defecto para nuevos monitores. Independiente de HA. Se aplica a todos los emails e informes locales; cambiarlo no activa ni reenvía emails."
+        }
+      },
+      "report": {
+        "title": "Revisar contenido del informe",
+        "description": "Inventario limitado a los dispositivos seleccionados, sin diagnósticos completos. Revise nombres y valores para proteger su privacidad. Cada medición conserva su disponibilidad, fecha y antigüedad.",
+        "data": {
+          "report_entities": "Entidades adicionales del informe",
+          "report_exclude": "Exclusiones del inventario"
+        },
+        "data_description": {
+          "report_entities": "Hasta 150 entidades de los dispositivos seleccionados. No incluya identificadores privados ni texto sensible.",
+          "report_exclude": "Quite elementos no deseados. Las fuentes explícitas del diagnóstico siguen visibles aunque se excluyan."
+        }
+      }
+    },
+    "error": {
+      "source_changed": "Las fuentes han cambiado. Revise la selección y confirme de nuevo.",
+      "already_configured": "Este dispositivo ya tiene un monitor Viessmann Guard.",
+      "invalid_name": "Nombre no vacío de hasta 60 caracteres, sin saltos de línea.",
+      "invalid_number": "Introduzca un número finito dentro de los límites. El número de muestras debe ser entero.",
+      "invalid_device": "Seleccione al menos un dispositivo existente.",
+      "required_source": "Seleccione una entidad para esta fuente obligatoria.",
+      "invalid_source": "Seleccione una fuente activada del dispositivo elegido, de un dominio compatible y no de Viessmann Guard.",
+      "source_unavailable": "La fuente no tiene un estado utilizable. Restablezca sus informes antes de seleccionarla.",
+      "invalid_flow_unit": "El caudal debe ser finito, no negativo y tener una unidad volumétrica explícita compatible.",
+      "invalid_speed_unit": "La velocidad debe ser un número finito entre 0 y 100 con unidad %.",
+      "invalid_measurement_unit": "Use un valor finito y una unidad de temperatura o presión compatible; sin presión negativa.",
+      "required_modes": "Introduzca al menos un valor original de modo activo.",
+      "overlapping_values": "Los grupos se solapan. Use valores distintos para estados incompatibles.",
+      "required_fault_mapping": "Indique valores de fallo activo y ausencia de fallo para la fuente configurada.",
+      "invalid_hysteresis": "La histéresis debe ser menor que el umbral de descenso relativo.",
+      "invalid_smtp_recipient": "Seleccione una entidad notify SMTP nativa activada con subentrada de destinatario válida.",
+      "too_many_recipients": "Seleccione como máximo 20 destinatarios.",
+      "duplicate_recipient": "Dos entidades identifican el mismo destinatario SMTP. Conserve solo una.",
+      "required_recipient": "Seleccione al menos un destinatario SMTP válido antes de activar los emails.",
+      "invalid_report_entity": "Seleccione una entidad válida no privada de un dispositivo elegido.",
+      "invalid_language": "Elija inglés, francés, español o alemán."
+    },
+    "abort": {
+      "already_configured": "Esta bomba de calor ya tiene un monitor Viessmann Guard. Use sus opciones.",
+      "source_changed": "La bomba de calor ViCare ya no está disponible. Restablezca la integración e inténtelo de nuevo."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Viessmann Guard",
+        "description": "Ajuste fuentes, reglas, permiso de email o alcance de informes. Ninguna opción controla la bomba de calor.",
+        "menu_options": {
+          "minimum": "Caudal mínimo opcional de la instalación",
+          "emails": "Emails y destinatarios",
+          "sources": "Fuentes del equipo",
+          "rules": "Reglas de detección",
+          "report": "Contenido del informe"
+        }
+      },
+      "minimum": {
+        "title": "Caudal mínimo de la instalación",
+        "description": "Introduzca solo el mínimo real del fabricante o instalador en L/min. Vacío desactiva alertas absolutas. Cambiarlo invalida la referencia aprendida, pero no borra incidentes ni cambia el equipo.",
+        "data": {
+          "min_flow_l_min": "Caudal mínimo (L/min)"
+        }
+      },
+      "sources": {
+        "title": "Asociar fuentes del equipo",
+        "description": "Seleccione entidades de los dispositivos elegidos. El diagnóstico activo requiere el estado del circulador. Sin credenciales Viessmann ni consultas API adicionales.",
+        "data": {
+          "name": "Nombre del monitor",
+          "device_ids": "Dispositivos del equipo",
+          "flow_entity": "Caudal volumétrico",
+          "mode_entity": "Modo de funcionamiento",
+          "pump_entity": "Estado de funcionamiento del circulador",
+          "pump_speed_entity": "Velocidad del circulador",
+          "fault_entity": "Estado de fallo nativo",
+          "supply_temperature_entity": "Temperatura de impulsión",
+          "return_temperature_entity": "Temperatura de retorno",
+          "pressure_entity": "Presión hidráulica",
+          "outside_temperature_entity": "Temperatura exterior",
+          "compressor_entity": "Estado del compresor",
+          "valve_entity": "Estado de la válvula"
+        },
+        "data_description": {
+          "name": "Nombre breve. Los ID de entidad pueden variar tras renombrar o por colisiones. Traducir etiquetas no cambia el sufijo por defecto.",
+          "device_ids": "Solo se admiten fuentes activadas de estos dispositivos.",
+          "flow_entity": "Número finito no negativo con una unidad volumétrica explícita compatible.",
+          "mode_entity": "Los estados originales deben coincidir con los modos activos, en reposo y excluidos configurados.",
+          "pump_entity": "Necesario para el diagnóstico activo de caudal. Si se omite, ese diagnóstico no estará disponible.",
+          "pump_speed_entity": "Porcentaje opcional de 0 a 100 con unidad % para comparar el funcionamiento del circulador.",
+          "fault_entity": "Opcional. Configure valores de fallo y ausencia de fallo en Reglas de detección.",
+          "supply_temperature_entity": "Temperatura de impulsión opcional para el informe.",
+          "return_temperature_entity": "Temperatura de retorno opcional para el informe.",
+          "pressure_entity": "Presión opcional del circuito para el informe.",
+          "outside_temperature_entity": "Temperatura exterior opcional para el informe.",
+          "compressor_entity": "Telemetría opcional del compresor, nunca órdenes.",
+          "valve_entity": "Telemetría opcional de válvula, nunca órdenes."
+        }
+      },
+      "rules": {
+        "title": "Definir reglas de evaluación y comparación",
+        "description": "Use el mínimo real de la instalación, no un ejemplo. Asocie estados y excluya el desescarche. Datos desconocidos, obsoletos o no comparables nunca prueban recuperación.",
+        "data": {
+          "min_flow_l_min": "Caudal mínimo de la instalación (L/min)",
+          "absolute_persistence_s": "Persistencia del caudal bajo (s)",
+          "relative_drop_pct": "Umbral de descenso relativo (%)",
+          "relative_persistence_s": "Persistencia del descenso relativo (s)",
+          "hysteresis_pct": "Histéresis de recuperación (%)",
+          "recovery_s": "Duración de recuperación saludable (s)",
+          "startup_grace_s": "Espera de arranque (s)",
+          "stale_after_s": "Límite de antigüedad del informe (s)",
+          "calibration_samples": "Número de muestras de calibración",
+          "calibration_duration_s": "Duración de calibración (s)",
+          "pump_tolerance_pct": "Tolerancia de velocidad (puntos porcentuales)",
+          "running_modes": "Valores de modos activos",
+          "idle_modes": "Valores de modos en reposo",
+          "excluded_modes": "Valores de modos excluidos",
+          "pump_on_values": "Valores de bomba en marcha",
+          "pump_off_values": "Valores de bomba parada",
+          "fault_values": "Valores de fallo activo",
+          "fault_clear_values": "Valores sin fallo"
+        },
+        "data_description": {
+          "min_flow_l_min": "Obtenga el límite de documentación fiable o un profesional cualificado. No se proporciona un mínimo del fabricante.",
+          "absolute_persistence_s": "Duración necesaria de caudal bajo válido antes de un incidente urgente.",
+          "relative_drop_pct": "Descenso respecto a la referencia saludable fija y confirmada.",
+          "relative_persistence_s": "Duración necesaria de descenso comparable antes de un incidente de vigilancia.",
+          "hysteresis_pct": "Margen de recuperación, menor que el umbral de descenso relativo.",
+          "recovery_s": "Duración de mediciones recientes saludables, no tiempo sin conexión.",
+          "startup_grace_s": "Espera tras arranque o cambio de contexto.",
+          "stale_after_s": "Límite de antigüedad del informe HA, no de la medición del controlador. Los valores en caché pueden quedar obsoletos.",
+          "calibration_samples": "Número mínimo de observaciones recientes tras confirmar condiciones saludables.",
+          "calibration_duration_s": "Intervalo mínimo de observación saludable. La referencia no baja automáticamente.",
+          "pump_tolerance_pct": "Diferencia admisible de velocidad en puntos porcentuales para condiciones comparables.",
+          "running_modes": "Al menos un valor original explícito de modo activo.",
+          "idle_modes": "Modos originales en los que se pausa el diagnóstico activo.",
+          "excluded_modes": "Incluya desescarche y otros modos no comparables. No se usan para calibrar.",
+          "pump_on_values": "Valores originales que confirman bomba en marcha.",
+          "pump_off_values": "Valores originales que confirman bomba parada.",
+          "fault_values": "Valores explícitos de fallo activo, obligatorios si se selecciona fuente de fallo.",
+          "fault_clear_values": "Valores explícitos sin fallo, separados de los de fallo activo."
+        }
+      },
+      "emails": {
+        "title": "Emails y destinatarios SMTP nativos",
+        "description": "Use entidades de destinatarios configuradas en SMTP de Home Assistant. No introduzca contraseñas. Desactivar bloquea pruebas y reintentos, pero no retira mensajes SMTP en curso.",
+        "data": {
+          "emails_enabled": "Activar emails",
+          "recipients": "Entidades de destinatarios SMTP",
+          "reminder_hours": "Intervalo de recordatorio (horas)",
+          "watch_email": "Enviar emails de vigilancia",
+          "language": "Idioma de emails e informes"
+        },
+        "data_description": {
+          "emails_enabled": "Mismo ajuste que el interruptor persistente. Reactivar solo envía tras confirmar el incidente actual con datos recientes.",
+          "recipients": "Hasta 20 destinatarios SMTP nativos validados. Use nombres neutros sin direcciones. Se normaliza el dominio, pero se conserva el uso de mayúsculas de la parte local.",
+          "reminder_hours": "Intervalo de 1 a 720 horas. Posponer no bloquea reintentos iniciales ni escaladas urgentes.",
+          "watch_email": "Recibir emails por incidentes de descenso relativo persistente.",
+          "language": "Inglés por defecto para nuevos monitores. Independiente de HA. Se aplica a todos los emails e informes locales; cambiarlo no activa ni reenvía emails."
+        }
+      },
+      "report": {
+        "title": "Revisar contenido del informe",
+        "description": "Informes privados limitados a los dispositivos. Sin diagnósticos completos ni atributos arbitrarios. Revise nombres neutros y antigüedad de cada medición.",
+        "data": {
+          "report_entities": "Entidades adicionales del informe",
+          "report_exclude": "Exclusiones del inventario"
+        },
+        "data_description": {
+          "report_entities": "Hasta 150 inclusiones válidas. No incluya identificadores privados ni texto sensible.",
+          "report_exclude": "Excluya elementos no deseados. Las fuentes explícitas del diagnóstico siguen visibles."
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Este dispositivo ya tiene un monitor Viessmann Guard.",
+      "invalid_name": "Nombre no vacío de hasta 60 caracteres, sin saltos de línea.",
+      "invalid_number": "Introduzca un número finito dentro de los límites. El número de muestras debe ser entero.",
+      "invalid_device": "Seleccione al menos un dispositivo existente.",
+      "required_source": "Seleccione una entidad para esta fuente obligatoria.",
+      "invalid_source": "Seleccione una fuente activada del dispositivo elegido, de un dominio compatible y no de Viessmann Guard.",
+      "source_unavailable": "La fuente no tiene un estado utilizable. Restablezca sus informes antes de seleccionarla.",
+      "invalid_flow_unit": "El caudal debe ser finito, no negativo y tener una unidad volumétrica explícita compatible.",
+      "invalid_speed_unit": "La velocidad debe ser un número finito entre 0 y 100 con unidad %.",
+      "invalid_measurement_unit": "Use un valor finito y una unidad de temperatura o presión compatible; sin presión negativa.",
+      "required_modes": "Introduzca al menos un valor original de modo activo.",
+      "overlapping_values": "Los grupos se solapan. Use valores distintos para estados incompatibles.",
+      "required_fault_mapping": "Indique valores de fallo activo y ausencia de fallo para la fuente configurada.",
+      "invalid_hysteresis": "La histéresis debe ser menor que el umbral de descenso relativo.",
+      "invalid_smtp_recipient": "Seleccione una entidad notify SMTP nativa activada con subentrada de destinatario válida.",
+      "too_many_recipients": "Seleccione como máximo 20 destinatarios.",
+      "duplicate_recipient": "Dos entidades identifican el mismo destinatario SMTP. Conserve solo una.",
+      "required_recipient": "Seleccione al menos un destinatario SMTP válido antes de activar los emails.",
+      "invalid_report_entity": "Seleccione una entidad válida no privada de un dispositivo elegido.",
+      "invalid_language": "Elija inglés, francés, español o alemán."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Estado",
+        "state": {
+          "normal": "Normal o en reposo; consulte el motivo",
+          "learning": "Arranque o calibración",
+          "watch": "Vigilancia",
+          "urgent": "Urgente",
+          "diagnostic_unavailable": "Diagnóstico no disponible"
+        },
+        "state_attributes": {
+          "reason": {
+            "name": "Código del motivo",
+            "state": {
+              "awaiting_observations": "Esperando informes de las fuentes.",
+              "minimum_not_configured": "Solo observación / seguimiento relativo: no se ha configurado el caudal mínimo. Las alertas absolutas están desactivadas.",
+              "clock_moved_backwards": "El reloj ha retrocedido; se reinician los tiempos de observación.",
+              "flow_unavailable": "Caudal: informe ausente, inválido o no disponible.",
+              "flow_stale": "Caudal: informe demasiado antiguo.",
+              "mode_unavailable": "Modo de funcionamiento: informe ausente, inválido o no disponible.",
+              "mode_stale": "Modo de funcionamiento: informe demasiado antiguo.",
+              "pump_unavailable": "Estado del circulador: informe ausente, inválido o no disponible.",
+              "pump_stale": "Estado del circulador: informe demasiado antiguo.",
+              "pump_speed_unavailable": "Velocidad del circulador: informe ausente, inválido o no disponible.",
+              "pump_speed_stale": "Velocidad del circulador: informe demasiado antiguo.",
+              "fault_unavailable": "Señal de fallo: informe ausente, inválido o no disponible.",
+              "fault_stale": "Señal de fallo: informe demasiado antiguo.",
+              "native_fault": "Hay un fallo nativo asociado explícitamente al caudal; su causa requiere investigación.",
+              "fault_unmapped": "Estado de fallo sin correspondencia; no se supone que sea un fallo de caudal.",
+              "pump_not_configured": "Seleccione una fuente de estado del circulador para confirmar que funciona.",
+              "mode_idle": "La bomba de calor está en reposo; no se diagnostica caudal bajo.",
+              "mode_excluded": "Modo excluido o desescarche; seguimiento heurístico en pausa.",
+              "mode_unmapped": "Modo de funcionamiento sin correspondencia; diagnóstico no disponible.",
+              "pump_off": "El circulador está parado; no se diagnostica caudal bajo.",
+              "pump_unmapped": "Estado del circulador sin correspondencia; diagnóstico no disponible.",
+              "pump_speed_invalid": "La velocidad del circulador debe ser un porcentaje finito entre 0 y 100.",
+              "flow_out_of_order": "La marca de tiempo del caudal ha retrocedido; diagnóstico en pausa.",
+              "flow_changed_without_report": "El caudal cambió sin una nueva marca de tiempo.",
+              "flow_invalid": "El caudal no es válido o su unidad no es compatible.",
+              "awaiting_post_restart_reports": "Esperando informes nuevos tras el reinicio.",
+              "startup_grace": "Esperando circulación estable tras el arranque o un cambio de contexto.",
+              "absolute_low_flow": "Caudal persistentemente inferior al mínimo de la instalación.",
+              "relative_flow_decline": "Descenso persistente respecto a una referencia saludable comparable.",
+              "baseline_context_mismatch": "La referencia no es comparable con este modo o velocidad del circulador.",
+              "recovery_pending": "Mediciones saludables observadas; esperando recuperación estable.",
+              "incident_pending_revalidation": "Incidente guardado pendiente de confirmación reciente; no se cuenta el tiempo sin observación.",
+              "recovery_hysteresis": "El incidente se conserva hasta superar el margen de recuperación.",
+              "calibration_sampling": "Recopilando muestras saludables representativas tras su confirmación.",
+              "calibration_complete": "Referencia saludable establecida y fijada.",
+              "calibration_cancelled_by_cleaning": "Limpieza registrada; calibración pendiente cancelada y referencia existente conservada.",
+              "absolute_low_pending": "Caudal bajo observado; aún no se cumple la duración configurada.",
+              "relative_decline_pending": "Descenso observado; aún no se cumple la duración configurada.",
+              "baseline_unconfirmed": "No hay una referencia saludable confirmada; el seguimiento relativo no está disponible.",
+              "healthy": "Las mediciones comparables cumplen los criterios de recuperación configurados."
+            }
+          },
+          "reason_text": {
+            "name": "Explicación del motivo"
+          },
+          "incident_id": {
+            "name": "ID del incidente"
+          },
+          "incident_severity": {
+            "name": "Gravedad del incidente",
+            "state": {
+              "watch": "Vigilancia",
+              "urgent": "Urgente"
+            }
+          },
+          "incident_confirmed": {
+            "name": "Incidente confirmado con datos recientes"
+          },
+          "acknowledged": {
+            "name": "Reconocido"
+          },
+          "snoozed_until": {
+            "name": "Recordatorios pospuestos hasta"
+          },
+          "anomaly_duration_seconds": {
+            "name": "Duración de la anomalía (segundos)"
+          },
+          "engine_phase": {
+            "name": "Fase del motor",
+            "state": {
+              "normal": "Normal o en reposo; consulte el motivo",
+              "learning": "Arranque o calibración",
+              "watch": "Vigilancia",
+              "urgent": "Urgente",
+              "diagnostic_unavailable": "Diagnóstico no disponible"
+            }
+          },
+          "absolute_alerts_configured": {
+            "name": "Alertas absolutas configuradas"
+          },
+          "limitations": {
+            "name": "Códigos de limitación"
+          },
+          "limitations_text": {
+            "name": "Limitaciones"
+          },
+          "source_statuses": {
+            "name": "Estado de fuentes detectadas"
+          }
+        }
+      },
+      "reason": {
+        "name": "Motivo",
+        "state": {
+          "awaiting_observations": "Esperando informes de las fuentes.",
+          "minimum_not_configured": "Solo observación / seguimiento relativo: no se ha configurado el caudal mínimo. Las alertas absolutas están desactivadas.",
+          "clock_moved_backwards": "El reloj ha retrocedido; se reinician los tiempos de observación.",
+          "flow_unavailable": "Caudal: informe ausente, inválido o no disponible.",
+          "flow_stale": "Caudal: informe demasiado antiguo.",
+          "mode_unavailable": "Modo de funcionamiento: informe ausente, inválido o no disponible.",
+          "mode_stale": "Modo de funcionamiento: informe demasiado antiguo.",
+          "pump_unavailable": "Estado del circulador: informe ausente, inválido o no disponible.",
+          "pump_stale": "Estado del circulador: informe demasiado antiguo.",
+          "pump_speed_unavailable": "Velocidad del circulador: informe ausente, inválido o no disponible.",
+          "pump_speed_stale": "Velocidad del circulador: informe demasiado antiguo.",
+          "fault_unavailable": "Señal de fallo: informe ausente, inválido o no disponible.",
+          "fault_stale": "Señal de fallo: informe demasiado antiguo.",
+          "native_fault": "Hay un fallo nativo asociado explícitamente al caudal; su causa requiere investigación.",
+          "fault_unmapped": "Estado de fallo sin correspondencia; no se supone que sea un fallo de caudal.",
+          "pump_not_configured": "Seleccione una fuente de estado del circulador para confirmar que funciona.",
+          "mode_idle": "La bomba de calor está en reposo; no se diagnostica caudal bajo.",
+          "mode_excluded": "Modo excluido o desescarche; seguimiento heurístico en pausa.",
+          "mode_unmapped": "Modo de funcionamiento sin correspondencia; diagnóstico no disponible.",
+          "pump_off": "El circulador está parado; no se diagnostica caudal bajo.",
+          "pump_unmapped": "Estado del circulador sin correspondencia; diagnóstico no disponible.",
+          "pump_speed_invalid": "La velocidad del circulador debe ser un porcentaje finito entre 0 y 100.",
+          "flow_out_of_order": "La marca de tiempo del caudal ha retrocedido; diagnóstico en pausa.",
+          "flow_changed_without_report": "El caudal cambió sin una nueva marca de tiempo.",
+          "flow_invalid": "El caudal no es válido o su unidad no es compatible.",
+          "awaiting_post_restart_reports": "Esperando informes nuevos tras el reinicio.",
+          "startup_grace": "Esperando circulación estable tras el arranque o un cambio de contexto.",
+          "absolute_low_flow": "Caudal persistentemente inferior al mínimo de la instalación.",
+          "relative_flow_decline": "Descenso persistente respecto a una referencia saludable comparable.",
+          "baseline_context_mismatch": "La referencia no es comparable con este modo o velocidad del circulador.",
+          "recovery_pending": "Mediciones saludables observadas; esperando recuperación estable.",
+          "incident_pending_revalidation": "Incidente guardado pendiente de confirmación reciente; no se cuenta el tiempo sin observación.",
+          "recovery_hysteresis": "El incidente se conserva hasta superar el margen de recuperación.",
+          "calibration_sampling": "Recopilando muestras saludables representativas tras su confirmación.",
+          "calibration_complete": "Referencia saludable establecida y fijada.",
+          "calibration_cancelled_by_cleaning": "Limpieza registrada; calibración pendiente cancelada y referencia existente conservada.",
+          "absolute_low_pending": "Caudal bajo observado; aún no se cumple la duración configurada.",
+          "relative_decline_pending": "Descenso observado; aún no se cumple la duración configurada.",
+          "baseline_unconfirmed": "No hay una referencia saludable confirmada; el seguimiento relativo no está disponible.",
+          "healthy": "Las mediciones comparables cumplen los criterios de recuperación configurados."
+        }
+      },
+      "current_flow": {
+        "name": "Caudal actual"
+      },
+      "reference_flow": {
+        "name": "Caudal de referencia"
+      },
+      "minimum_flow": {
+        "name": "Caudal mínimo"
+      },
+      "decline": {
+        "name": "Descenso"
+      },
+      "telemetry_updated": {
+        "name": "Telemetría actualizada"
+      },
+      "last_cleaned": {
+        "name": "Última limpieza"
+      },
+      "email_status": {
+        "name": "Estado de emails",
+        "state": {
+          "disabled": "Emails desactivados",
+          "ready": "Listo",
+          "pending": "En cola",
+          "retry": "Esperando reintento",
+          "sending": "Enviando",
+          "accepted": "Acción SMTP completada, entrega no confirmada",
+          "failed": "Error",
+          "unknown": "Resultado desconocido; no se reenvía automáticamente",
+          "storage_error": "Error de almacenamiento; no se puede registrar el envío con seguridad"
+        },
+        "state_attributes": {
+          "recipients": {
+            "name": "Resultados por destinatario"
+          }
+        }
+      },
+      "recipient_status": {
+        "name": "Email: {recipient}",
+        "state": {
+          "disabled": "Emails desactivados",
+          "ready": "Listo",
+          "pending": "En cola",
+          "retry": "Esperando reintento",
+          "sending": "Enviando",
+          "accepted": "Acción SMTP completada, entrega no confirmada",
+          "failed": "Error",
+          "unknown": "Resultado desconocido; no se reenvía automáticamente",
+          "storage_error": "Error de almacenamiento"
+        },
+        "state_attributes": {
+          "name": {
+            "name": "Nombre neutro del destinatario"
+          },
+          "status": {
+            "name": "Estado del envío",
+            "state": {
+              "disabled": "Emails desactivados",
+              "ready": "Listo",
+              "pending": "En cola",
+              "retry": "Esperando reintento",
+              "sending": "Enviando",
+              "accepted": "Acción SMTP completada, entrega no confirmada",
+              "failed": "Error",
+              "unknown": "Resultado desconocido; no se reenvía automáticamente",
+              "storage_error": "Error de almacenamiento; no se puede registrar el envío con seguridad"
+            }
+          },
+          "attempts": {
+            "name": "Intentos"
+          },
+          "updated_at": {
+            "name": "Estado actualizado"
+          },
+          "next_attempt_at": {
+            "name": "Próximo intento"
+          },
+          "accepted_at": {
+            "name": "Hora de finalización SMTP"
+          },
+          "error": {
+            "name": "Código de error anonimizado"
+          },
+          "kind": {
+            "name": "Tipo de notificación",
+            "state": {
+              "watch": "Vigilancia del descenso de caudal",
+              "urgent": "Alerta urgente de caudal",
+              "reminder": "Recordatorio de alerta de caudal",
+              "recovery": "Recuperación del caudal",
+              "test": "Email de prueba"
+            }
+          },
+          "key": {
+            "name": "Clave de notificación"
+          }
+        }
+      }
+    },
+    "switch": {
+      "emails_enabled": {
+        "name": "Activar emails"
+      }
+    },
+    "button": {
+      "acknowledge": {
+        "name": "Reconocer"
+      },
+      "snooze": {
+        "name": "Posponer recordatorios 24 horas"
+      },
+      "record_cleaning": {
+        "name": "Registrar limpieza"
+      },
+      "confirm_calibration": {
+        "name": "Confirmo condiciones saludables: calibrar"
+      },
+      "test_email": {
+        "name": "Enviar email de prueba"
+      }
+    }
+  },
+  "exceptions": {
+    "entry_unavailable": {
+      "message": "Este monitor no está cargado. Cargue la integración antes de usar esta acción."
+    },
+    "emails_disabled": {
+      "message": "Los emails están desactivados, incluidas las pruebas. Actívelos deliberadamente antes de solicitar una prueba."
+    },
+    "required_recipient": {
+      "message": "Seleccione al menos un destinatario SMTP nativo válido antes de activar o probar los emails."
+    },
+    "invalid_smtp_recipient": {
+      "message": "Un destinatario seleccionado no es una entidad SMTP nativa activada con subentrada válida."
+    },
+    "too_many_recipients": {
+      "message": "Seleccione como máximo 20 entidades de destinatarios SMTP."
+    },
+    "duplicate_recipient": {
+      "message": "Dos entidades identifican el mismo destinatario SMTP. Conserve solo una."
+    },
+    "smtp_error": {
+      "message": "La acción SMTP ha fallado para algún destinatario. Revise los resultados individuales; no suponga que debe reenviar a quienes ya tuvieron éxito."
+    },
+    "confirmation_required": {
+      "message": "La calibración requiere confirmed: true tras comprobar independientemente condiciones saludables y comparables."
+    },
+    "no_incident_ack": {
+      "message": "No hay un incidente activo que reconocer"
+    },
+    "no_incident_snooze": {
+      "message": "No hay un incidente activo que posponer"
+    },
+    "calibration_incident": {
+      "message": "No se permite calibrar durante un incidente activo"
+    },
+    "calibration_progress": {
+      "message": "Ya hay una calibración en curso"
+    },
+    "calibration_unhealthy": {
+      "message": "La calibración requiere telemetría reciente, saludable y en funcionamiento tras el arranque"
+    },
+    "action_failed": {
+      "message": "No se ha podido completar la acción. Consulte el motivo del diagnóstico y los registros de Home Assistant."
+    }
+  },
+  "services": {
+    "get_report": {
+      "name": "Leer el informe de observación",
+      "description": "Devuelve un informe local del equipo elegido, sin emails, cambios de cola ni órdenes. Funciona con emails desactivados.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada Viessmann Guard cuyos equipos se incluyen."
+        }
+      }
+    },
+    "acknowledge": {
+      "name": "Reconocer incidente",
+      "description": "Marcar el incidente como visto. No lo resuelve ni controla la bomba de calor.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada de configuración Viessmann Guard."
+        }
+      }
+    },
+    "snooze": {
+      "name": "Posponer recordatorios",
+      "description": "Pospone solo recordatorios, no reintentos iniciales ni escaladas urgentes. El vencimiento no prueba recuperación ni cambia la referencia.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada de configuración Viessmann Guard."
+        },
+        "hours": {
+          "name": "Horas",
+          "description": "De 1 a 168 horas. El botón del panel usa 24 horas."
+        }
+      }
+    },
+    "record_cleaning": {
+      "name": "Registrar limpieza realizada",
+      "description": "Registra mantenimiento y cancela calibración incompleta. No prueba recuperación, resuelve incidentes ni sustituye la referencia aceptada.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada de configuración Viessmann Guard."
+        }
+      }
+    },
+    "confirm_calibration": {
+      "name": "Confirmar calibración saludable",
+      "description": "Autoriza una referencia fija a partir de observaciones posteriores saludables, recientes y comparables. No confirme solo porque se registró una limpieza.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada de configuración Viessmann Guard."
+        },
+        "confirmed": {
+          "name": "Condiciones saludables confirmadas",
+          "description": "Debe ser verdadero. Confirme independientemente condiciones saludables y comparables."
+        }
+      }
+    },
+    "test_email": {
+      "name": "Enviar email de prueba",
+      "description": "Solicita prueba para los destinatarios configurados. Los emails deben estar activados. SMTP completado no garantiza entrega.",
+      "fields": {
+        "entry_id": {
+          "name": "Monitor",
+          "description": "La entrada de configuración Viessmann Guard."
+        }
+      }
+    }
+  },
+  "selector": {
+    "email_language": {
+      "options": {
+        "en": "English",
+        "fr": "Français",
+        "es": "Español",
+        "de": "Deutsch"
+      }
+    }
+  }
+}

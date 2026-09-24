@@ -1,0 +1,238 @@
+# Native Home Assistant dashboard template, not a discovered installation.
+# Replace EVERY demo_guard entity ID, including IDs inside markdown templates
+# and action targets. IDs depend on device names, renaming, and existing entities.
+# Default suffixes are stable keys, independent of translated display labels.
+# No custom cards, remote assets, fixed widths, or theme overrides are required.
+title: Viessmann Guard
+views:
+  - title: Monitoring
+    path: guard
+    type: masonry
+    icon: mdi:water-pump
+    cards:
+      - type: markdown
+        title: Flow monitoring
+        content: |
+          Read-only: no heat-pump commands or extra Viessmann requests.
+          Monitoring continues when this dashboard is closed.
+
+          **This is not a safety device.** Low flow does not prove a blocked
+          filter. Follow the manufacturer's instructions and consult a qualified
+          professional.
+
+          The `demo_guard` IDs are placeholders to replace, not discovered
+          entities. No manufacturer minimum is supplied.
+
+      - type: entities
+        title: State and reason
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_state
+          - entity: sensor.demo_guard_reason
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: absolute_alerts_configured
+            name: Absolute threshold configured
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: limitations_text
+            name: Diagnostic limitations
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: acknowledged
+            name: Incident acknowledged
+          - type: attribute
+            entity: sensor.demo_guard_state
+            attribute: incident_confirmed
+            name: Incident confirmed by fresh data
+
+      - type: entities
+        title: Flow and reference
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_current_flow
+          - entity: sensor.demo_guard_minimum_flow
+            name: Installation minimum
+          - entity: sensor.demo_guard_reference_flow
+            name: Fixed healthy reference
+          - entity: sensor.demo_guard_decline
+
+      - type: history-graph
+        title: Flow history
+        hours_to_show: 24
+        entities:
+          - entity: sensor.demo_guard_current_flow
+          - entity: sensor.demo_guard_minimum_flow
+          - entity: sensor.demo_guard_reference_flow
+
+      - type: entities
+        title: Freshness and maintenance
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: sensor.demo_guard_telemetry_updated
+            name: Latest HA telemetry report
+          - entity: sensor.demo_guard_last_cleaned
+
+      - type: markdown
+        title: Reading the observations
+        content: |
+          The telemetry timestamp does not prove that every source is fresh.
+          Each report measurement has its own status, timestamp and age.
+          `last_reported` is a Home Assistant report time, not the controller's
+          physical measurement time.
+
+          Identical values can be fresh when reported again. Cached values can
+          become stale. After a restart, Guard waits for new source reports.
+
+          Acknowledgement means "seen", not resolved. Snooze pauses reminders
+          only, not initial retries or urgent escalation. Its expiry does not
+          resolve an incident. Recording cleaning is not proof of recovery and
+          does not replace the reference. It cancels unfinished calibration.
+
+      - type: entities
+        title: Emails
+        show_header_toggle: false
+        state_color: false
+        entities:
+          - entity: switch.demo_guard_emails_enabled
+          - entity: sensor.demo_guard_email_status
+
+      - type: markdown
+        title: Per-recipient delivery outcomes
+        entity_id:
+          - sensor.demo_guard_email_status
+          - switch.demo_guard_emails_enabled
+        content: |
+          {% set labels = {
+            'disabled': 'Emails disabled',
+            'ready': 'Ready',
+            'pending': 'Queued',
+            'retry': 'Retry scheduled',
+            'sending': 'Sending',
+            'accepted': 'SMTP action completed, inbox delivery unconfirmed',
+            'failed': 'Failed',
+            'unknown': 'Outcome unknown, no automatic resend',
+            'storage_error': 'Storage error'
+          } %}
+          {% set recipients = state_attr('sensor.demo_guard_email_status', 'recipients') %}
+          {% if not is_state('switch.demo_guard_emails_enabled', 'on') %}
+          **Emails disabled or permission unavailable, including tests.**
+          The outcomes below may describe earlier sends.
+          {% endif %}
+          {% if recipients is mapping and recipients | count > 0 %}
+          {% for recipient, result in recipients.items() %}
+          {% if result is mapping %}
+          **{{ (result.get('name') or ('Recipient ' ~ loop.index)) | e }}**
+
+          {{ labels.get(result.get('status', 'unknown'), 'Unrecognized status') }}.
+          Attempts: {{ result.get('attempts', 0) }} / 3.
+          {% if result.get('updated_at') %}
+          Updated: {{ result.get('updated_at') | timestamp_custom('%Y-%m-%d %H:%M %Z', true) }}.
+          {% endif %}
+          {% if result.get('next_attempt_at') %}
+          Next attempt: {{ result.get('next_attempt_at') | timestamp_custom('%Y-%m-%d %H:%M %Z', true) }}.
+          {% endif %}
+          {% set test = result.get('test') %}
+          {% if test is mapping %}
+          Last test: {{ labels.get(test.get('status', 'unknown'), 'Unrecognized status') }}.
+          Test attempts: {{ test.get('attempts', 0) }} / 3.
+          {% endif %}
+
+          {% endif %}
+          {% endfor %}
+          {% else %}
+          No outcomes available. Check selected SMTP recipients in Guard's
+          options. A missing outcome does not mean a message was delivered.
+          {% endif %}
+
+          Use neutral names such as "Maintenance" or "Household" in native SMTP,
+          without addresses or personal information. Displayed labels are
+          sanitized; raw addresses and entity IDs are not displayed here.
+          Individual diagnostic sensors are also available on the device page.
+
+          SMTP does not guarantee inbox delivery. Disabling emails cannot recall
+          a message already in flight. Re-enabling does not replay old alerts
+          without fresh confirmation of the current incident.
+
+          Select recipients in Configure > Emails and recipients, then save.
+          Creating recipients in SMTP alone does not select them in Guard.
+          The independent email/report language is also configured there.
+
+      - type: button
+        entity: button.demo_guard_acknowledge
+        name: Acknowledge incident
+        icon: mdi:check-circle-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_acknowledge
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_snooze
+        name: Pause reminders for 24 hours
+        icon: mdi:bell-sleep-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_snooze
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_record_cleaning
+        name: Record completed cleaning
+        icon: mdi:calendar-check-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_record_cleaning
+          confirmation:
+            text: Confirm that cleaning was completed? This records a date and cancels unfinished calibration. It does not prove recovery, clear an incident or replace the accepted reference.
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_confirm_calibration
+        name: "I confirm healthy operation: calibrate"
+        icon: mdi:chart-bell-curve-cumulative
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_confirm_calibration
+          confirmation:
+            text: Have you independently confirmed healthy, stable, comparable operation? This authorizes calibration from new eligible observations. Recording cleaning alone is not sufficient.
+        hold_action:
+          action: none
+
+      - type: button
+        entity: button.demo_guard_test_email
+        name: Send test email
+        icon: mdi:email-outline
+        show_name: true
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.demo_guard_test_email
+          confirmation:
+            text: Send a real test to configured recipients? Emails must be enabled. SMTP completion does not guarantee inbox delivery.
+        hold_action:
+          action: none
