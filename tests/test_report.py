@@ -5,6 +5,7 @@ from html.parser import HTMLParser
 
 import pytest
 
+from custom_components.viessmann_guard.email_layout import _WORDS
 from custom_components.viessmann_guard.report import render_report
 
 
@@ -102,8 +103,8 @@ class Tags(HTMLParser):
 
 
 def test_english_report_includes_all_observations_and_telemetry(snapshot):
-    title, plain, html = render_report(snapshot, "urgent")
-    assert title.startswith("[URGENT] Heat pump")
+    title, plain, html = render_report(snapshot, "report")
+    assert title.startswith("Heat pump: Hydraulic flow report")
     for content in (plain, unescape(html)):
         for value in (
             snapshot["generated_at"],
@@ -141,9 +142,9 @@ def test_english_report_includes_all_observations_and_telemetry(snapshot):
 
 @pytest.mark.parametrize("language", ["fr", "fr-FR", "fr_CA"])
 def test_french_template_is_complete_and_explicit_about_uncertainty(snapshot, language):
-    title, plain, html = render_report(snapshot, "reminder", language)
-    assert title.startswith("[URGENT]")
-    assert "Rappel d'alerte" in title
+    title, plain, html = render_report(snapshot, "report", language)
+    assert not title.startswith("[URGENT]")
+    assert "Rapport de débit" in title
     for content in (plain, unescape(html)):
         for text in (
             "Généré le",
@@ -188,8 +189,12 @@ def test_report_and_test_without_incident_do_not_invent_severity():
     for kind in ("report", "test"):
         title, plain, _ = render_report({}, kind)
         assert "[URGENT]" not in title
-        assert "Recorded severity: Missing / not supplied" in plain
-        assert "Current source flow: Missing / not supplied" in plain
+        if kind == "report":
+            assert "Recorded severity: Missing / not supplied" in plain
+            assert "Current source flow: Missing / not supplied" in plain
+        else:
+            assert "No captured incident" in plain
+            assert "Current flow: Missing / not supplied" in plain
         assert "Generated at: Missing / not supplied" in plain
 
 
@@ -272,6 +277,11 @@ def test_every_report_is_cautious_and_provides_professional_alternatives(snapsho
     for kind in ("urgent", "reminder", "recovery", "report", "test"):
         _, plain, html = render_report(snapshot, kind, language)
         for content in (plain.lower(), unescape(html).lower()):
+            if kind != "report":
+                index = ("en", "fr").index(language)
+                assert _WORDS["email_advice"][index].lower() in content
+                assert _WORDS["email_details"][index].lower() in content
+                continue
             if language == "en":
                 assert "may be consistent" in content
                 assert "not a diagnosis" in content
@@ -313,7 +323,7 @@ def test_missing_and_stale_are_both_explicit_even_for_partial_telemetry():
             {"name": "Unknown sensor", "value": "unknown"},
         ],
     }
-    _, plain, html = render_report(snapshot, "test")
+    _, plain, html = render_report(snapshot, "report")
     assert "Optional sensor (sensor.optional)" in plain
     assert "Data age: Missing / not supplied" in plain
     assert "Missing / not supplied; Stale" in plain

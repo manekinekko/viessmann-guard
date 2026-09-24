@@ -87,7 +87,10 @@ def inventory(hass: HomeAssistant, config: dict[str, Any]) -> tuple[list[str], b
             selected.add(entity.entity_id)
     # Always keep explicit diagnostic mappings visible, even if excluded from auto-inventory.
     selected = (selected - excluded) | mapped
-    safe = sorted(e for e in selected if scoped_entity(hass, e, config["device_ids"]))
+    safe = sorted(
+        (e for e in selected if scoped_entity(hass, e, config["device_ids"])),
+        key=lambda entity_id: (entity_id not in mapped, entity_id),
+    )
     return safe[:MAX_REPORT_ENTITIES], len(safe) > MAX_REPORT_ENTITIES
 
 
@@ -146,6 +149,13 @@ def report_telemetry(
             continue
         status = item.status
         value = item.value
+        roles = [role for role in SOURCE_ROLES if config.get(f"{role}_entity") == entity_id]
+        temperature = any(role.endswith("_temperature") for role in roles) or bool(
+            state and state.attributes.get("device_class") == "temperature"
+        )
+        pressure = "pressure" in roles or bool(
+            state and state.attributes.get("device_class") == "pressure"
+        )
         if (
             state
             and state.domain in ("sensor", "number")
@@ -158,22 +168,15 @@ def report_telemetry(
                 convert_flow(item.value, item.unit)
             except TypeError, ValueError:
                 status, value = "invalid_or_unsupported_unit", None
-        if (
-            state
-            and state.attributes.get("device_class") == "pressure"
-            and isinstance(value, (float, int))
-            and value < 0
-        ):
+        if pressure and isinstance(value, (float, int)) and value < 0:
             status, value = "invalid", None
-        if (
-            state
-            and item.status == "ok"
-            and (
-                state.attributes.get("device_class") == "pressure"
-                and item.unit not in PRESSURE_UNITS
-                or state.attributes.get("device_class") == "temperature"
-                and item.unit not in TEMPERATURE_UNITS
-            )
+        if item.status == "ok" and (
+            (pressure or temperature)
+            and not isinstance(value, (float, int))
+            or pressure
+            and item.unit not in PRESSURE_UNITS
+            or temperature
+            and item.unit not in TEMPERATURE_UNITS
         ):
             status, value = "invalid_or_unsupported_unit", None
         if (
@@ -185,6 +188,7 @@ def report_telemetry(
         result.append(
             {
                 "entity_id": entity_id,
+                "roles": roles,
                 "name": name,
                 "value": value,
                 "unit": item.unit,
@@ -209,6 +213,7 @@ def report_telemetry(
                 result.append(
                     {
                         **result[-1],
+                        "roles": [],
                         "name": f"{name}: {key}",
                         "value": raw if valid and item.status == "ok" else None,
                         "unit": str(hass.config.units.temperature_unit),

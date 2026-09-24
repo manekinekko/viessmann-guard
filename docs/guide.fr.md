@@ -295,6 +295,17 @@ Un défaut natif sans débit exploitable affiche une valeur indisponible, pas z�
 Pour un incident antérieur à cette version, le débit exact au déclenchement reste
 inconnu : aucun débit actuel ou historique voisin ne le remplace.
 
+Depuis 0.4.2, l'email reste court : **débits en gros**, motif/seuil/durée de l'alerte, mode,
+circulation, départ/retour, ΔT, pression, vitesse/défaut si associés, graphique
+cinq jours et une recommandation prudente. Chaque mesure garde son âge ou son
+indisponibilité. Le ΔT utilise des rapports frais, pas forcément simultanés,
+convertis en °C. Aucune puissance ni efficacité n'est déduite.
+
+Les listes de règles, entités, méthodes et annexes ne sont plus dans l'email.
+Le **rapport local `get_report`** conserve tous les détails : preuves et heures
+exactes, couverture, référence, entretien, compresseur, température extérieure,
+télémétrie autorisée et liste de contrôles. Les captures restent inchangées.
+
 Le graphique couvre **cinq jours calendaires dans le fuseau HA**, aujourd'hui
 étant indiqué partiel, avec prise en compte des changements d'heure. Toutes
 les valeurs sont en L/min, après conversion des unités source. Les barres HTML

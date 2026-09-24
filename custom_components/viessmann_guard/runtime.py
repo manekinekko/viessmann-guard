@@ -656,6 +656,7 @@ class GuardRuntime:
         telemetry.append(
             {
                 "entity_id": None,
+                "roles": ["delta_t"],
                 "name": report_copy(self.config["language"])["delta_t"],
                 "unit": "°C",
                 "value": supply - returned if supply is not None and returned is not None else None,

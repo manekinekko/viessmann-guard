@@ -86,8 +86,24 @@ entities, limited retention and database errors cannot block urgent mail.
 `email_layout.py` applies the approved red inline-table layout to the shared
 SMTP/local report snapshot. The subject, plain text and HTML cover all four
 languages. It contains no client-side code, remote images or CID pipeline.
-The entire allowlisted appendix remains available. Historical sampling adds no
+The entire allowlisted appendix remains available in the local report. Historical sampling adds no
 new detection rule, automatic calibration, device control or SMTP permission.
+
+The technician readout uses explicit `roles` on sanitized telemetry rows, never
+friendly-name matching or unconfigured generic faults. Mapped sources take
+priority within the existing inventory cap; climate attribute expansions do not
+inherit hydraulic roles. Pressure/temperature unit and numeric validation also
+uses configured roles when a source omits its device class. Freshness and missing
+values stay per measurement. ΔT is current supply minus return after conversion,
+not a simultaneous controller reading, a captured trigger value or a power/COP
+estimate. All outgoing email kinds use the compact layout, without the full
+telemetry, methods, thresholds or appendix. They retain the flow KPIs, captured
+cause/threshold/duration, essential current readings with age/status, daily median
+chart and one cautious inspection note. A changed current state (for example
+idle, stale or recovery) remains explicit beside the historical capture.
+Only `kind="report"` includes the complete local report and appendix. All four
+languages and both text/HTML follow this distinction. Stored evidence and
+notification behavior are unaffected.
 
 ## Configuration contract
 

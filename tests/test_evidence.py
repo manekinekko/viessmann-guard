@@ -84,7 +84,7 @@ def test_fault_capture_rejects_changed_value_with_reused_report_timestamp():
     assert engine.incident["opening"]["flow"] is None
 
 
-def test_rendered_capture_keeps_fractional_source_and_decision_timestamps():
+def test_detailed_report_keeps_fractional_source_and_decision_timestamps():
     engine = Engine(settings())
     engine.evaluate(snapshot(1000.25, 5))
     engine.evaluate(snapshot(1020.75, 4, flow_at=1020.125))
@@ -92,7 +92,7 @@ def test_rendered_capture_keeps_fractional_source_and_decision_timestamps():
     assert capture["duration_s"] == 20.5
     _, message, html = render_report(
         {"incident": engine.incident, "incident_capture": capture, "timezone": "UTC"},
-        "urgent",
+        "report",
     )
     for content in (message, html):
         assert "1970-01-01T00:17:00.125000+00:00" in content
@@ -435,6 +435,7 @@ def synthetic_report(*, complete=True):
         "flow": 7.25,
         "flow_reported_at": datetime.fromtimestamp(now - 2, UTC).isoformat(),
         "minimum": 10,
+        "last_cleaned": datetime.fromtimestamp(now - 30 * 86400, UTC).isoformat(),
         "duration_seconds": current.anomaly_duration,
         "state": "urgent",
         "reason_code": "absolute_low_flow",
@@ -448,6 +449,7 @@ def synthetic_report(*, complete=True):
             {
                 "name": "Synthetic flow / Débit fictif",
                 "entity_id": "sensor.synthetic_flow",
+                "roles": ["flow"],
                 "value": 7.25,
                 "unit": "L/min",
                 "status": "ok",
@@ -455,14 +457,38 @@ def synthetic_report(*, complete=True):
                 "freshness_seconds": 2,
             },
             {
-                "name": "Synthetic pump / Circulateur fictif",
-                "entity_id": "sensor.synthetic_pump",
+                "name": "Synthetic pump speed / Vitesse fictive du circulateur",
+                "entity_id": "sensor.synthetic_pump_speed",
+                "roles": ["pump_speed"],
                 "value": 55,
                 "unit": "%",
                 "status": "ok",
                 "observed_at": datetime.fromtimestamp(now - 2, UTC).isoformat(),
                 "freshness_seconds": 2,
             },
+            *[
+                {
+                    "name": f"Synthetic {role}",
+                    "entity_id": f"sensor.synthetic_{role}" if role != "delta_t" else None,
+                    "roles": [role],
+                    "value": value,
+                    "unit": unit,
+                    "status": "ok",
+                    "observed_at": datetime.fromtimestamp(now - age, UTC).isoformat(),
+                    "freshness_seconds": age,
+                }
+                for role, value, unit, age in (
+                    ("mode", "heat", None, 2),
+                    ("pump", "on", None, 2),
+                    ("compressor", "on", None, 4),
+                    ("supply_temperature", 38.5, "°C", 4),
+                    ("return_temperature", 33.0, "°C", 6),
+                    ("delta_t", 5.5, "°C", 6),
+                    ("pressure", 1.6, "bar", 12),
+                    ("outside_temperature", 7.0, "°C", 20),
+                    ("fault", "off", None, 2),
+                )
+            ],
         ],
     }
 
@@ -475,13 +501,16 @@ def test_partial_history_is_upfront_without_a_prominent_or_subject_decline(langu
     assert "-45" not in title
     front = html.split(_WORDS["appendix"][index])[0]
     assert "-45" not in front
-    assert _WORDS["insufficient"][index] in front
-    assert _WORDS["limited_change"][index] in html
-    assert _WORDS["limited_change"][index] in plain
+    assert _WORDS["email_partial"][index] in front
+    assert _WORDS["appendix"][index] not in html
+    assert "-45" not in plain
+    _, detailed, detailed_html = render_report(data, "report", language)
+    assert _WORDS["limited_change"][index] in detailed_html
+    assert _WORDS["limited_change"][index] in detailed
 
 
 def test_layout_keeps_brand_red_large_figures_compact_priority_and_structured_appendix():
-    _, _, html = render_report(synthetic_report(), "urgent", "fr")
+    _, _, html = render_report(synthetic_report(), "report", "fr")
     assert "#ff8065" not in html.lower()
     assert html.count('class="guard-big"') == 3
     assert html.count("font-size:48px;line-height:1.2;color:#FF3E17") == 2
@@ -493,7 +522,8 @@ def test_layout_keeps_brand_red_large_figures_compact_priority_and_structured_ap
     assert "Aucun rattrapage Recorder" in appendix
     assert "25 oct." in front
     assert '<th scope="row"' in appendix
-    assert front.index("Cinq jours") < front.index("Faire inspecter") < len(front)
+    assert front.index("Relevé hydraulique") < front.index("Cinq jours")
+    assert front.index("Cinq jours") < front.index("Points à vérifier") < len(front)
     assert "20 secondes" in front
     assert "50 seconds" not in html
 
@@ -510,15 +540,20 @@ def test_actual_renderer_all_types_locales_evidence_escaping_and_email_safe_html
     for content in (plain, unescape(html)):
         assert ("7.25" if language == "en" else "7,25") in content
         assert ("8.75" if language == "en" else "8,75") in content
-        assert "2026-10-25" in content
         assert "Europe/Paris" in content
-        assert "2026-10-21" in content
+        if kind == "report":
+            assert "2026-10-25" in content
+            assert "2026-10-21" in content
+        else:
+            assert "2026" in content
+            assert "13:59:30" in content
     assert (
         "[URG" not in title
         if kind in ("recovery", "test", "report", "watch")
         else "[URG" in title or "[DRINGEND]" in title
     )
-    assert malicious not in html and malicious in unescape(html)
+    assert malicious not in html
+    assert (malicious in unescape(html)) is (kind == "report")
     assert "#FF3E17" in html and "#CC2C08" in html
     parser = Tags()
     parser.feed(html)

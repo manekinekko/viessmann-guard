@@ -256,6 +256,103 @@ _COPY = {
 }
 
 _LABELS = {
+    "technician": (
+        "Current hydraulic operating context",
+        "Relevé hydraulique actuel",
+        "Contexto hidráulico actual",
+        "Aktueller hydraulischer Betriebszustand",
+    ),
+    "measurements_note": (
+        "Current HA reports, not measurements frozen at the alert. Each value has its own freshness. ΔT = supply minus return, converted to °C from fresh reports that are not necessarily simultaneous; not a heating-power or efficiency calculation.",
+        "Rapports HA actuels, pas des mesures figées au déclenchement. Chaque valeur a sa fraîcheur. ΔT = départ moins retour, converti en °C à partir de rapports frais mais pas forcément simultanés ; ce n'est pas un calcul de puissance ou de rendement.",
+        "Informes actuales de HA, no mediciones fijadas al activarse la alerta. Cada valor tiene su propia antigüedad. ΔT = impulsión menos retorno, convertido a °C desde informes recientes no necesariamente simultáneos; no calcula potencia ni rendimiento.",
+        "Aktuelle HA-Meldungen, keine zum Alarmzeitpunkt eingefrorenen Messwerte. Jeder Wert hat seine eigene Aktualität. ΔT = Vorlauf minus Rücklauf, aus frischen, nicht zwingend gleichzeitigen Meldungen in °C umgerechnet; keine Leistungs- oder Effizienzberechnung.",
+    ),
+    "mode": (
+        "Actual phase / mode",
+        "Phase / mode réel",
+        "Fase / modo real",
+        "Tatsächliche Phase / Betriebsart",
+    ),
+    "pump": (
+        "Heating-circuit circulation",
+        "Circulateur du circuit",
+        "Circulación del circuito",
+        "Heizkreisumwälzung",
+    ),
+    "pump_speed": (
+        "Circulator speed",
+        "Vitesse du circulateur",
+        "Velocidad del circulador",
+        "Umwälzpumpendrehzahl",
+    ),
+    "compressor": (
+        "Compressor state",
+        "État du compresseur",
+        "Estado del compresor",
+        "Verdichterzustand",
+    ),
+    "supply_temperature": (
+        "Supply water temperature",
+        "Température de départ d'eau",
+        "Temperatura de impulsión",
+        "Wasservorlauftemperatur",
+    ),
+    "return_temperature": (
+        "Return water temperature",
+        "Température de retour d'eau",
+        "Temperatura de retorno",
+        "Wasserrücklauftemperatur",
+    ),
+    "pressure": ("Circuit pressure", "Pression du circuit", "Presión del circuito", "Anlagendruck"),
+    "outside_temperature": (
+        "Outdoor temperature",
+        "Température extérieure",
+        "Temperatura exterior",
+        "Außentemperatur",
+    ),
+    "fault": (
+        "Configured fault signal (raw)",
+        "Signal de défaut configuré (brut)",
+        "Señal de fallo configurada (bruta)",
+        "Konfiguriertes Fehlersignal (roh)",
+    ),
+    "saved_reference": (
+        "Recorded healthy reference",
+        "Référence saine enregistrée",
+        "Referencia saludable registrada",
+        "Gespeicherter gesunder Referenzwert",
+    ),
+    "live_assessment": (
+        "Current assessment",
+        "Évaluation actuelle",
+        "Evaluación actual",
+        "Aktuelle Beurteilung",
+    ),
+    "inspection_checks": (
+        "Checks for the heating technician",
+        "Points à vérifier par le chauffagiste",
+        "Comprobaciones para el técnico",
+        "Prüfpunkte für die Heizungsfachkraft",
+    ),
+    "check_conditions": (
+        "Compare flow with the installation documentation for this actual operating mode and circulation state. Confirm the on-site readings and any native fault before drawing conclusions.",
+        "Comparer le débit à la documentation de l'installation pour ce mode réel et cet état de circulation. Confirmer les relevés sur place et tout défaut natif avant de conclure.",
+        "Comparar el caudal con la documentación de la instalación para este modo y estado de circulación. Confirmar las lecturas in situ y cualquier fallo nativo antes de concluir.",
+        "Durchfluss mit der Anlagendokumentation für diese Betriebsart und den Pumpenzustand vergleichen. Messwerte vor Ort und mögliche Gerätefehler vor einer Schlussfolgerung bestätigen.",
+    ),
+    "check_hydraulics": (
+        "Assess filters/strainers, circulator operation, valve positions, circuit pressure, air and sensor reliability. These are alternative causes, not a confirmed blocked-filter diagnosis.",
+        "Contrôler filtres/tamis, fonctionnement du circulateur, position des vannes, pression du circuit, présence d'air et fiabilité des capteurs. Ce sont des causes possibles, pas un diagnostic de filtre colmaté.",
+        "Revisar filtros, circulador, posiciones de válvulas, presión, aire y fiabilidad de sensores. Son causas posibles, no un diagnóstico confirmado de filtro obstruido.",
+        "Filter/Siebe, Umwälzpumpe, Ventilstellungen, Anlagendruck, Luft und Sensorzuverlässigkeit prüfen. Mögliche Ursachen, keine bestätigte Filterverstopfung.",
+    ),
+    "check_record": (
+        "Record the intervention and before/after readings under comparable conditions. Clean only if fouling is confirmed, following the manufacturer's safety procedure; never open pressurized equipment or bypass protections.",
+        "Consigner l'intervention et les relevés avant/après en conditions comparables. Nettoyer uniquement si l'encrassement est confirmé, selon la procédure de sécurité du fabricant ; ne jamais ouvrir un équipement sous pression ni contourner les protections.",
+        "Registrar la intervención y las lecturas antes/después en condiciones comparables. Limpiar solo si se confirma suciedad, según el fabricante; nunca abrir equipos presurizados ni anular protecciones.",
+        "Eingriff und Vorher-/Nachherwerte unter vergleichbaren Bedingungen dokumentieren. Nur bei bestätigter Verschmutzung nach Herstellervorgaben reinigen; niemals druckbeaufschlagte Geräte öffnen oder Schutzfunktionen umgehen.",
+    ),
     "duration_seconds": (
         "Condition duration (current observation window)",
         "Durée de la condition (fenêtre d'observation actuelle)",
@@ -534,6 +631,79 @@ def _telemetry_status(item: dict[str, Any], copy: dict[str, str]) -> str:
     return "; ".join(markers) if markers else copy["missing"]
 
 
+def _technician_rows(
+    snapshot: dict, copy: dict[str, str], language: str, *, compact: bool = False
+) -> list[tuple[str, str]]:
+    """Use explicit source roles only, never infer heating measurements from names."""
+    telemetry = snapshot.get("telemetry")
+    telemetry = telemetry if isinstance(telemetry, list) else []
+    rows = []
+    for role in (
+        "mode",
+        "pump",
+        "pump_speed",
+        "compressor",
+        "supply_temperature",
+        "return_temperature",
+        "delta_t",
+        "pressure",
+        "outside_temperature",
+        "fault",
+    ):
+        if compact and role in {"compressor", "outside_temperature"}:
+            continue
+        matches = [
+            item
+            for item in telemetry
+            if isinstance(item, dict)
+            and isinstance(item.get("roles"), list)
+            and role in item["roles"]
+        ]
+        item = matches[0] if len(matches) == 1 else {}
+        if compact and not matches and role in {"pump_speed", "fault"}:
+            continue
+        value = _scalar(item.get("value"))
+        valid = (
+            item.get("status") == "ok"
+            and value is not None
+            and value.casefold()
+            not in {
+                "unknown",
+                "unavailable",
+                "none",
+            }
+        )
+        if valid:
+            if type(item["value"]) in (float, int):
+                value = f"{item['value']:.2f}".rstrip("0").rstrip(".")
+                if language != "en":
+                    value = value.replace(".", ",")
+            display = f"{value} {_scalar(item.get('unit')) or ''}".strip()
+        elif compact:
+            status = item.get("status")
+            display = (
+                copy.get(status, copy["unavailable"])
+                if isinstance(status, str)
+                else copy["unavailable"]
+            )
+        else:
+            display = _telemetry_status({**item, "value": None}, copy)
+        age = item.get("freshness_seconds")
+        if (
+            isinstance(age, (int, float))
+            and not isinstance(age, bool)
+            and isfinite(age)
+            and age >= 0
+        ):
+            display += (
+                f" ({age:.0f} s)"
+                if compact
+                else f" ({copy['freshness_seconds']}: {age:.0f} {copy['seconds']})"
+            )
+        rows.append((copy[role], display))
+    return rows
+
+
 def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str, str, str]:
     """Return a single-line title, complete plain text, and escaped HTML.
 
@@ -679,4 +849,14 @@ def render_report(snapshot: dict, kind: str, language: str = "en") -> tuple[str,
     )
     sections.append((copy["limitations"], [("", copy["limitations_text"])]))
 
-    return layout(snapshot, kind, language, title, copy[kind], copy, _scalar, sections)
+    return layout(
+        snapshot,
+        kind,
+        language,
+        title,
+        copy[kind],
+        copy,
+        _scalar,
+        sections,
+        _technician_rows(snapshot, copy, language, compact=kind != "report"),
+    )

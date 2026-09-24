@@ -18,6 +18,7 @@ from test_integration import reports, settle, setup_guard, smtp_recipient
 from test_no_smtp import assert_off
 
 from custom_components.viessmann_guard.const import DOMAIN, LANGUAGES
+from custom_components.viessmann_guard.email_layout import _WORDS
 from custom_components.viessmann_guard.reasons import REASON_CODES, REASONS, describe_reason
 from custom_components.viessmann_guard.report import _COPY, render_report, report_copy
 from custom_components.viessmann_guard.runtime import configuration, fingerprint
@@ -71,7 +72,7 @@ async def test_complete_native_catalogs_loaded_by_home_assistant(hass, language)
 def test_every_report_kind_has_complete_localized_presentation(language, kind):
     malicious = '<img src=x onerror="steal()">&'
     snapshot = {
-        "name": "Demo",
+        "name": "Demo " + malicious,
         "generated_at": "2026-09-22T08:00:00+00:00",
         "state": "diagnostic_unavailable",
         "reason_code": "flow_stale",
@@ -112,6 +113,13 @@ def test_every_report_kind_has_complete_localized_presentation(language, kind):
         else not title.startswith("[")
     )
     for content in (text, unescape(html)):
+        if kind != "report":
+            assert copy["diagnostic_unavailable"] in content
+            assert describe_reason("flow_stale", language) in content
+            assert _WORDS["email_advice"][LANGUAGES.index(language)] in content
+            assert copy["thresholds"] not in content
+            assert copy["limitations_text"] not in content
+            continue
         for field in (
             "diagnostic_unavailable",
             "missing",

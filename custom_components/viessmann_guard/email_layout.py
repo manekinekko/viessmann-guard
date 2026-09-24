@@ -12,6 +12,42 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .reasons import describe_reason
 
 _WORDS = {
+    "email_note": (
+        "Current readings (age in seconds). ΔT from fresh, not necessarily simultaneous reports.",
+        "Mesures actuelles (âge en secondes). ΔT calculé sur des rapports frais, pas forcément simultanés.",
+        "Lecturas actuales (edad en segundos). ΔT de informes recientes, no necesariamente simultáneos.",
+        "Aktuelle Werte (Alter in Sekunden). ΔT aus frischen, nicht zwingend gleichzeitigen Meldungen.",
+    ),
+    "email_history": (
+        "Sampled daily medians in comparable conditions. Today is partial.",
+        "Médianes échantillonnées en conditions comparables. Aujourd'hui est partiel.",
+        "Medianas muestreadas en condiciones comparables. Hoy es parcial.",
+        "Stichprobenmediane unter vergleichbaren Bedingungen. Heute unvollständig.",
+    ),
+    "email_partial": (
+        "Partial history: no five-day decline conclusion.",
+        "Historique partiel : baisse sur cinq jours non démontrée.",
+        "Historial parcial: bajada de cinco días no demostrada.",
+        "Unvollständiger Verlauf: kein belegter Rückgang über fünf Tage.",
+    ),
+    "email_advice": (
+        "If the anomaly persists, have the circuit and filters checked by a qualified professional. Cause unconfirmed. Not a safety device.",
+        "Si l'anomalie persiste, faire contrôler circuit et filtres par un professionnel. Cause non confirmée. Pas un dispositif de sécurité.",
+        "Si persiste la anomalía, encargar la revisión del circuito y filtros a un profesional. Causa no confirmada. No es un dispositivo de seguridad.",
+        "Bei anhaltender Auffälligkeit Kreislauf und Filter durch Fachpersonal prüfen lassen. Ursache unbestätigt. Keine Sicherheitseinrichtung.",
+    ),
+    "email_details": (
+        "Full details: Viessmann Guard > Read the observation report in HA.",
+        "Détails : Viessmann Guard > Lire le rapport d'observation dans HA.",
+        "Detalles: Viessmann Guard > Leer el informe de observación en HA.",
+        "Details: Viessmann Guard > Beobachtungsbericht lesen in HA.",
+    ),
+    "email_change": (
+        "Sampled medians",
+        "Médianes échantillonnées",
+        "Medianas muestreadas",
+        "Stichprobenmediane",
+    ),
     "partial_history": (
         "Partial history",
         "Historique partiel",
@@ -321,11 +357,13 @@ def layout(
     copy: dict[str, str],
     scalar: Callable[[Any], str | None],
     sections: list[tuple[str, list[tuple[str, str]]]],
+    technician_rows: list[tuple[str, str]],
 ) -> tuple[str, str, str]:
     words = {
         key: values[("en", "fr", "es", "de").index(language)] for key, values in _WORDS.items()
     }
     missing = copy["missing"]
+    compact_email = kind != "report"
 
     def text(value: Any) -> str:
         return scalar(value) or missing
@@ -387,7 +425,8 @@ def layout(
     if finite(flow):
         title += f" | {words['current']}: {measure(flow)}"
     if finite(change) and sufficient:
-        title += f" | {words['change']}: {num(round(change, 2))} %"
+        if not compact_email:
+            title += f" | {words['change']}: {num(round(change, 2))} %"
     elif history:
         title += f" | {words['partial_history']}"
     title = title[:400]
@@ -473,12 +512,33 @@ def layout(
         ),
         (words["speed_tolerance"], num(history.get("speed_tolerance"))),
     ]
-    extra = [(words["current"], front), (words["five_days"], history_rows)]
-    plain = [title, evidence_note]
+    assessment = [
+        (copy["state"], copy.get(text(snapshot.get("state")), text(snapshot.get("state")))),
+        (
+            copy["reason"],
+            describe_reason(snapshot["reason_code"], language)
+            if isinstance(snapshot.get("reason_code"), str)
+            else text(snapshot.get("reason")),
+        ),
+    ]
+    if not compact_email:
+        technician_rows = [
+            *technician_rows,
+            (copy["minimum"], measure(snapshot.get("minimum"))),
+            (copy["saved_reference"], measure(snapshot.get("reference"))),
+            (copy["last_cleaned"], stamp(snapshot.get("last_cleaned"), compact=True)),
+        ]
+    checks = [copy[key] for key in ("check_conditions", "check_hydraulics", "check_record")]
+    plain = [title, f"{text(snapshot.get('name'))} | {zone.key}", ""]
+    plain.extend(f"{key}: {value}" for key, value in front[:4])
     if relation:
         plain.append(relation)
-    for heading, rows in extra:
-        plain.extend(["", heading, *(f"{key}: {value}" for key, value in rows)])
+    plain.extend(["", copy["live_assessment"], *(f"{key}: {value}" for key, value in assessment)])
+    plain.extend(["", words["trigger_rule"], evidence_note])
+    plain.extend(f"{key}: {value}" for key, value in front[4:])
+    plain.extend(["", copy["technician"], *(f"{key}: {value}" for key, value in technician_rows)])
+    plain.extend(["", copy["measurements_note"], "", words["five_days"]])
+    plain.extend(f"{key}: {value}" for key, value in history_rows)
     maximum = max(
         (
             row["median"]
@@ -491,12 +551,14 @@ def layout(
     )
     plain.extend(f"{key}: {value}" for key, value in context)
     chart = []
+    compact_days = []
     coverage_rows = []
     for row in days:
         day = text(row.get("date")) + (
             f" ({words['partial']})" if row.get("partial") is True else ""
         )
         value = row.get("median")
+        compact_days.append((short_date(row.get("date")), measure(value)))
         width = (
             min(100.0, max(0.0, value / maximum * 100))
             if type(value) in (int, float) and math.isfinite(value) and maximum > 0
@@ -527,15 +589,23 @@ def layout(
             + "</th>"
             f'<td style="padding:14px 6px;border-bottom:1px solid #e9e7e4">{bar}</td>'
             f'<td style="padding:14px 4px;text-align:right;font-size:14px;border-bottom:1px solid #e9e7e4">{escape(num(value) if finite(value) else words["na"])}</td>'
-            f'<td style="padding:14px 0 14px 4px;text-align:right;font-size:14px;border-bottom:1px solid #e9e7e4">{escape(num(row.get("minimum")) if finite(row.get("minimum")) else words["na"])}</td></tr>'
+            + (
+                ""
+                if compact_email
+                else f'<td style="padding:14px 0 14px 4px;text-align:right;font-size:14px;border-bottom:1px solid #e9e7e4">{escape(num(row.get("minimum")) if finite(row.get("minimum")) else words["na"])}</td>'
+            )
+            + "</tr>"
         )
     scale = f"{words['scale']}: 0 / {measure(maximum)}" if maximum else words["insufficient"]
     notes = [scale, conclusion, words["method"], words["reliability"], words["no_backfill"]]
     if not anchor.get("speed_configured"):
         notes.append(words["speed_missing"])
-    plain.extend(notes)
-    plain.extend(["", words["inspect"], words["inspection"], copy["alternatives_text"]])
+    plain.extend([conclusion, words["short_context"]])
+    plain.extend(
+        ["", copy["inspection_checks"], *(f"{i}. {line}" for i, line in enumerate(checks, 1))]
+    )
     plain.extend(["", words["appendix"]])
+    plain.extend(notes)
     for heading, rows in [(words["coverage"], coverage_rows), *sections]:
         plain.extend(
             ["", heading, *(f"{key}: {value}" if key else value for key, value in rows)]
@@ -550,7 +620,7 @@ def layout(
             else f'<tr><td colspan="2" style="padding:8px">{escape(value)}</td></tr>'
             for key, value in rows
         )
-        return f'<table width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;overflow-wrap:anywhere;font-size:13px;text-align:left">{cells}</table>'
+        return f'<table width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;overflow-wrap:anywhere;font-size:14px;text-align:left">{cells}</table>'
 
     method_rows = [
         *history_rows,
@@ -586,6 +656,8 @@ def layout(
         )
     else:
         cause.append(evidence_note)
+        if compact_email and finite(minimum):
+            cause.append(f"{copy['minimum']}: {measure(minimum)}")
     brief_cause = "<br>".join(escape(line) for line in cause)
     if snapshot.get("incident_source_changed") is True:
         brief_cause += f"<br>{escape(words['changed_sources'])}"
@@ -600,6 +672,72 @@ def layout(
         f"{short_date(days[0].get('date'))} / {short_date(days[-1].get('date'))}"
         if days
         else missing
+    )
+    checklist = "".join(f'<li style="margin:12px 0">{escape(check)}</li>' for check in checks)
+    if compact_email:
+        current_status = (
+            f"{assessment[0][1]}: {assessment[1][1]}"
+            if snapshot.get("reason_code") and snapshot.get("reason_code") != capture.get("reason")
+            else ""
+        )
+        status_markup = (
+            f'<p style="font-size:14px">{escape(current_status)}</p>' if current_status else ""
+        )
+        change_summary = (
+            f"{words['email_change']}: {num(round(change, 2))} %"
+            if finite(change) and sufficient
+            else words["email_partial"]
+        )
+        headline = f'<p style="font-size:14px;margin:8px 0">{escape(change_summary)}</p>'
+        closing = (
+            f'<p style="font-size:13px;margin:20px 0 8px">{escape(words["email_advice"])}</p>'
+            f'<p style="font-size:12px">{escape(words["email_details"])}</p>'
+        )
+        plain = [
+            title,
+            f"{copy['generated_at']}: {stamp(snapshot.get('generated_at'), compact=True)} ({zone.key})",
+            "",
+            f"{words['current']}: {measure(flow)} ({stamp(snapshot.get('flow_reported_at'), compact=True)})",
+            f"{words['trigger']}: {measure(capture.get('flow'))} ({stamp(capture.get('flow_reported_at'), compact=True)})",
+            current_status,
+            words["trigger_rule"],
+            *cause,
+            words["changed_sources"] if snapshot.get("incident_source_changed") is True else "",
+            "",
+            copy["technician"],
+            *(f"{key}: {value}" for key, value in technician_rows),
+            words["email_note"],
+            "",
+            words["five_days"],
+            change_summary,
+            *(f"{key}: {value}" for key, value in compact_days),
+            words["email_history"],
+            "",
+            words["email_advice"],
+            words["email_details"],
+        ]
+    else:
+        status_markup = f'<h2 style="font-size:20px;margin:24px 0 8px">{escape(copy["live_assessment"])}</h2>{pairs(assessment)}'
+        closing = (
+            f'<table role="presentation" class="guard-panel" width="100%" cellspacing="0" cellpadding="0" style="background:#fff1ed;border-left:4px solid {BRAND};margin:28px 0"><tr><td style="padding:20px">'
+            f'<h2 style="font-size:20px;margin:0 0 10px">{escape(copy["inspection_checks"])}</h2>'
+            f'<ol style="padding-left:22px;font-size:14px">{checklist}</ol></td></tr></table>'
+            f'<h2 style="font-size:25px">{escape(words["appendix"])}</h2>{appendix}'
+        )
+    relation_markup = (
+        f'<p style="font-size:13px">{escape(relation)}</p>'
+        if relation and not compact_email
+        else ""
+    )
+    history_detail = (
+        ""
+        if compact_email
+        else f'<p style="font-size:14px;margin:0 0 16px"><strong>{escape(conclusion)}</strong></p>'
+    )
+    min_header = (
+        ""
+        if compact_email
+        else f'<th scope="col" width="19%" style="text-align:right;font-size:11px">{escape(words["minimum"])}<br>L/min</th>'
     )
     markup = (
         f'<!DOCTYPE html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -621,18 +759,18 @@ def layout(
         f'<strong>{escape(words["trigger"])}</strong><p class="guard-big" style="font-size:48px;line-height:1.2;color:{BRAND};font-weight:bold;margin:12px 0">{escape(kpi_trigger)}'
         + (' <span style="font-size:16px">L/min</span>' if finite(capture.get("flow")) else "")
         + f'</p><p style="font-size:12px">{escape(words["reported"])}<br>{escape(stamp(capture.get("flow_reported_at"), compact=True))}</p></td></tr></table>'
-        f'<p style="font-size:13px">{escape(relation) if relation else ""}</p>'
+        f"{relation_markup}{status_markup}"
         f'<table role="presentation" class="guard-panel" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f5f3;border-left:4px solid {BRAND};margin:16px 0"><tr><td style="padding:16px;font-size:14px"><strong>{escape(words["trigger_rule"])}</strong><br>{brief_cause}</td></tr></table>'
+        f'<h2 style="font-size:24px;margin:28px 0 8px">{escape(copy["technician"])}</h2>{pairs(technician_rows)}'
+        f'<p style="font-size:12px">{escape(words["email_note"] if compact_email else copy["measurements_note"])}</p>'
         f'<h2 style="font-size:27px;margin:28px 0 6px">{escape(words["five_days"])}</h2>'
         f'<p style="font-size:13px;margin:0">{escape(dates)} · {escape(words["partial"])}</p>{headline}'
-        f'<p style="font-size:14px;margin:0 0 16px"><strong>{escape(conclusion)}</strong></p>'
+        f"{history_detail}"
         f'<table width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed;overflow-wrap:anywhere"><caption style="text-align:left;font-size:12px">{escape(scale)}</caption>'
         f'<thead><tr><th scope="col" width="24%" style="text-align:left;font-size:11px">{escape(words["day"])}</th><th scope="col" width="38%" style="font-size:11px">{escape(words["daily_view"])}</th>'
-        f'<th scope="col" width="19%" style="text-align:right;font-size:11px">{escape(words["median"])}<br>L/min</th><th scope="col" width="19%" style="text-align:right;font-size:11px">{escape(words["minimum"])}<br>L/min</th></tr></thead><tbody>{"".join(chart)}</tbody></table>'
-        f'<p style="font-size:13px">{escape(words["short_context"])}</p>'
-        + f'<table role="presentation" class="guard-panel" width="100%" cellspacing="0" cellpadding="0" style="background:#fff1ed;border-left:4px solid {BRAND};margin:28px 0"><tr><td style="padding:20px">'
-        f'<h2 style="font-size:20px;margin:0 0 10px">{escape(words["inspect"])}</h2><p>{escape(words["inspection"])}</p><p style="font-size:13px">{escape(copy["alternatives_text"])}</p></td></tr></table>'
-        f'<h2 style="font-size:25px">{escape(words["appendix"])}</h2>{appendix}'
+        f'<th scope="col" width="19%" style="text-align:right;font-size:11px">{escape(words["median"])}<br>L/min</th>{min_header}</tr></thead><tbody>{"".join(chart)}</tbody></table>'
+        f'<p style="font-size:12px">{escape(words["email_history"] if compact_email else words["short_context"])}</p>'
+        f"{closing}"
         "</td></tr></table></td></tr></table></body></html>"
     )
     return title, "\n".join(plain), markup

@@ -282,8 +282,7 @@ heat-pump hardware.
 
 ### Incident evidence and the five-day view
 
-Version 0.4.0 adds the same evidence-rich layout to emails and local reports:
-current flow and its HA report timestamp, next to an **immutable capture at the
+Emails keep current flow in large type next to an **immutable capture at the
 alert decision**. An opening watch alert and a later urgent escalation have
 separate captures. Reminders retain the flow that triggered the displayed alert
 level, not the latest reading. The recorded rule, threshold/reference, observed
@@ -291,6 +290,18 @@ duration and window, decision time, opening time and any escalation time remain
 distinct. A recovery message identifies confirmed stable recovery and retains
 the closed incident's evidence. A native flow fault can have no usable flow
 measurement; that value is unavailable, not zero.
+
+From 0.4.2, outgoing emails are concise: trigger reason/threshold/duration, mode, circulation,
+supply/return temperatures, ΔT, pressure, optional speed/fault, five-day chart and
+one cautious inspection note. Each value keeps its age or unavailable status.
+Source roles are explicit, not guessed from names. ΔT uses fresh, not necessarily
+simultaneous reports converted to °C, without inferring power or efficiency.
+There is no telemetry dump, rule list or technical appendix in email.
+
+The **local `get_report` action** retains full details: exact evidence and
+timestamps, sources, thresholds, method/coverage, reference, last cleaning,
+compressor/outdoor temperature, complete allowlisted telemetry and inspection
+checklist. Compact email changes do not remove persisted evidence.
 
 Existing incidents from older versions keep their ID, acknowledgement, snooze
 and delivery state. Their exact trigger measurement is **unknown**, even if a
